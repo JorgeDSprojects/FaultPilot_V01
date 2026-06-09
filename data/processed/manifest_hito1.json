@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-06-09T21:17:56.631764+00:00",
+  "parser_version": "0.1.0",
+  "documents": {
+    "fanuc": {
+      "source": "ac_spindle_alarm_list.pdf",
+      "output": "fanuc_ac_spindle_chunks.jsonl",
+      "chunks": 52
+    },
+    "bosch": {
+      "source": "Error_messages_CC_220107007331804.pdf",
+      "output": "bosch_cc220_chunks.jsonl",
+      "chunks": 653
+    }
+  },
+  "warnings": [],
+  "validation_report": {
+    "checked_chunks": 705,
+    "critical_errors": 0,
+    "checks": {
+      "missing_manufacturer": 0,
+      "missing_source_doc": 0,
+      "invalid_page": 0,
+      "missing_equipment": 0
+    },
+    "status": "ok"
+  }
+}

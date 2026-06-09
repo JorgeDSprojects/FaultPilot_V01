@@ -1,0 +1,11 @@
+{
+  "checked_chunks": 705,
+  "critical_errors": 0,
+  "checks": {
+    "missing_manufacturer": 0,
+    "missing_source_doc": 0,
+    "invalid_page": 0,
+    "missing_equipment": 0
+  },
+  "status": "ok"
+}
