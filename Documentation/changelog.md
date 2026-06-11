@@ -59,3 +59,36 @@
   - `uv run faultpilot-retrieval --settings config/settings.yaml index`
 - Retrieval search smoke test executed:
   - `uv run faultpilot-retrieval --settings config/settings.yaml search --query "AL-09" --route alarm_lookup --manufacturer Fanuc`
+
+## 2026-06-11 - Hito 3: Router + RAG Pipeline (LangGraph)
+
+### Added
+- Routing package under `faultpilot/routing/`:
+  - `schemas.py` for routing contracts.
+  - `local_classifier.py` for regex/keyword local intent detection.
+  - `llm_classifier.py` for provider-agnostic LLM fallback classification.
+  - `intent_router.py` for local-first routing policy with degraded fallback.
+- RAG package under `faultpilot/rag/`:
+  - `schemas.py` (`Citation`, `RagAnswer`).
+  - `context_builder.py` for bounded context assembly.
+  - `generator.py` for provider-agnostic answer generation adapter.
+  - `postprocess.py` for citation guard and safe fallback response.
+  - `state.py` for LangGraph state typing.
+  - `graph.py` for graph composition (`route -> retrieve -> context -> generate -> guard`).
+  - `service.py` for high-level `answer(...)` API.
+- Test suites:
+  - `tests/routing/` for local classifier and router fallback behavior.
+  - `tests/rag/` for context builder, citation guard, and graph/service integration.
+- Hito 3 design and implementation plans:
+  - `Documentation/plan/2026-06-11-hito3-routing-rag-design.md`
+  - `Documentation/plan/2026-06-11-hito3-routing-rag-implementation-plan.md`
+
+### Changed
+- `config/prompts.yaml`:
+  - Added `route_intent`, `rag_answer`, and `rag_answer_strict_citations` templates.
+- `config/settings.yaml`:
+  - Extended `routing` with `local_first`, `llm_fallback_enabled`, and `default_intent`.
+  - Added `rag` section with `max_context_chars` and `max_regeneration_attempts`.
+
+### Verification
+- Full automated suite: `uv run python -m pytest tests -v` -> 33 passed.

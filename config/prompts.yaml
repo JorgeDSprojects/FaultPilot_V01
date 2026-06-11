@@ -4,6 +4,17 @@ system_prompts:
     Use retrieved context and always include source document and page references.
 
 prompts:
+  route_intent: |
+    Classify this industrial query into one intent:
+    - alarm_lookup
+    - troubleshooting
+    - programming
+
+    Query: {query}
+
+    Return strict JSON:
+    {{"intent":"...","confidence":0.0-1.0,"reason":"short"}}
+
   answer_with_citations: |
     Question: {query}
 
@@ -11,3 +22,23 @@ prompts:
     {context}
 
     Provide a concise technical answer with explicit source and page citations.
+
+  rag_answer: |
+    Intent: {intent}
+    Question: {query}
+
+    Grounded context:
+    {context}
+
+    Produce a practical OT troubleshooting answer using only grounded context.
+    Include at least one citation in format [source_doc:p.<page>].
+
+  rag_answer_strict_citations: |
+    Intent: {intent}
+    Question: {query}
+
+    Grounded context:
+    {context}
+
+    You MUST include at least one valid citation in format [source_doc:p.<page>].
+    If evidence is weak, say so clearly and still cite the closest valid source/page.

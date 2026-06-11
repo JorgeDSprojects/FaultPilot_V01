@@ -57,7 +57,15 @@ indexing:
 # --- Query routing ---
 routing:
   regex_first: true            # Applies cheap local regex routing before any model-based routing.
+  local_first: true            # Forces local intent classifier to run before LLM fallback.
+  llm_fallback_enabled: true   # Enables LLM classification when local confidence is ambiguous.
+  default_intent: "troubleshooting" # Safe fallback route when classification fails.
   ambiguous_threshold: 0.55    # Confidence threshold below which route is treated as ambiguous.
+
+# --- RAG pipeline ---
+rag:
+  max_context_chars: 6000      # Maximum grounded context length injected into generation.
+  max_regeneration_attempts: 1 # Number of citation-guard regeneration retries before safe fallback.
 
 # --- Observability ---
 observability:
