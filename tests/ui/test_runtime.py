@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from faultpilot.retrieval.schemas import RetrievedChunk
-from faultpilot.ui.runtime import _FallbackLlmClassifier, build_ui_runtime, collect_filter_options
+from faultpilot.ui.runtime import build_ui_runtime, collect_filter_options
 
 
 def _chunk(chunk_id: str, manufacturer: str, equipment: str) -> RetrievedChunk:
@@ -34,38 +34,30 @@ def test_collect_filter_options_sorts_unique_values() -> None:
     assert equipment == ["All", "A06B", "CC220"]
 
 
-def test_fallback_llm_classifier_is_deterministic() -> None:
-    classifier = _FallbackLlmClassifier()
+def test_collect_filter_options_accepts_generator_iterable() -> None:
+    chunks = (
+        _chunk(chunk_id, manufacturer, equipment)
+        for chunk_id, manufacturer, equipment in [
+            ("1", "Fanuc", "A06B"),
+            ("2", "Bosch", "CC220"),
+            ("3", "Bosch", "CC220"),
+        ]
+    )
 
-    first = classifier.classify("what is AL-09?")
-    second = classifier.classify("any query")
+    manufacturers, equipment = collect_filter_options(chunks)
 
-    assert first.intent == "troubleshooting"
-    assert first.confidence == 0.5
-    assert first.evidence == "fallback_ui_classifier"
-    assert second == first
+    assert manufacturers == ["All", "Bosch", "Fanuc"]
+    assert equipment == ["All", "A06B", "CC220"]
 
 
 def test_build_ui_runtime_wires_dependencies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     settings_path = tmp_path / "settings.yaml"
-    bm25_path = tmp_path / "bm25_index.pkl"
+    settings = _build_settings(tmp_path)
+    bm25_path = Path(settings.raw["paths"]["bm25_index"])
     chunks = [
         _chunk("1", "Fanuc", "A06B"),
         _chunk("2", "Bosch", "CC220"),
     ]
-    settings = SimpleNamespace(
-        raw={
-            "paths": {
-                "chunks_jsonl_dir": str(tmp_path / "processed"),
-                "bm25_index": str(bm25_path),
-                "chroma_db": str(tmp_path / "chroma_db"),
-            },
-            "embeddings": {"model_name": "dense-model"},
-            "reranker": {"model_name": "reranker-model"},
-            "routing": {"ambiguous_threshold": 0.42, "local_first": True},
-            "rag": {"max_context_chars": 1234, "max_regeneration_attempts": 2},
-        }
-    )
 
     calls: dict[str, object] = {}
     sparse = object()
@@ -182,7 +174,14 @@ def test_build_ui_runtime_wires_dependencies(tmp_path: Path, monkeypatch: pytest
     assert calls["retrieval_sparse"] is sparse
     assert calls["retrieval_dense"] is dense
     assert isinstance(calls["router_local_classifier"], _FakeLocalIntentClassifier)
-    assert isinstance(calls["router_llm_classifier"], _FallbackLlmClassifier)
+    llm_classifier = calls["router_llm_classifier"]
+    assert hasattr(llm_classifier, "classify")
+    first = llm_classifier.classify("What is AL-09?")  # type: ignore[union-attr]
+    second = llm_classifier.classify("Different question")  # type: ignore[union-attr]
+    assert first == second
+    assert first.intent == "troubleshooting"
+    assert first.confidence == 0.5
+    assert first.evidence == "fallback_ui_classifier"
     assert calls["router_threshold"] == 0.42
     assert calls["router_local_first"] is True
     assert calls["generator_client"] is None
@@ -198,29 +197,19 @@ def test_build_ui_runtime_loads_persisted_bm25_index(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings_path = tmp_path / "settings.yaml"
-    bm25_path = tmp_path / "bm25_index.pkl"
+    settings = _build_settings(tmp_path)
+    bm25_path = Path(settings.raw["paths"]["bm25_index"])
     bm25_path.write_bytes(b"persisted")
-    settings = SimpleNamespace(
-        raw={
-            "paths": {
-                "chunks_jsonl_dir": str(tmp_path / "processed"),
-                "bm25_index": str(bm25_path),
-                "chroma_db": str(tmp_path / "chroma_db"),
-            },
-            "embeddings": {"model_name": "dense-model"},
-            "reranker": {"model_name": "reranker-model"},
-            "routing": {"ambiguous_threshold": 0.55, "local_first": True},
-            "rag": {"max_context_chars": 1000, "max_regeneration_attempts": 1},
-        }
-    )
+    chunks = [_chunk("1", "Fanuc", "A06B")]
 
-    calls: dict[str, object] = {"loaded": False, "built": False}
+    calls: dict[str, object] = {"loaded": False, "built": False, "retrieval_sparse": None}
+    loaded_sparse = object()
 
     monkeypatch.setattr("faultpilot.ui.runtime.load_settings", lambda _: settings)
-    monkeypatch.setattr("faultpilot.ui.runtime.load_chunks", lambda _: [])
+    monkeypatch.setattr("faultpilot.ui.runtime.load_chunks", lambda _: chunks)
     monkeypatch.setattr(
         "faultpilot.ui.runtime.load_bm25_index",
-        lambda path: calls.__setitem__("loaded", path) or object(),
+        lambda path: calls.__setitem__("loaded", path) or loaded_sparse,
     )
     monkeypatch.setattr(
         "faultpilot.ui.runtime.build_bm25_index",
@@ -228,7 +217,10 @@ def test_build_ui_runtime_loads_persisted_bm25_index(
     )
     monkeypatch.setattr("faultpilot.ui.runtime.build_dense_index", lambda *args, **kwargs: object())
     monkeypatch.setattr("faultpilot.ui.runtime.CrossEncoderReranker", lambda **kwargs: object())
-    monkeypatch.setattr("faultpilot.ui.runtime.HybridRetrievalService", lambda **kwargs: object())
+    monkeypatch.setattr(
+        "faultpilot.ui.runtime.HybridRetrievalService",
+        lambda **kwargs: calls.__setitem__("retrieval_sparse", kwargs["sparse_retriever"]) or object(),
+    )
     monkeypatch.setattr("faultpilot.ui.runtime.LocalIntentClassifier", lambda: object())
     monkeypatch.setattr("faultpilot.ui.runtime.IntentRouter", lambda **kwargs: object())
     monkeypatch.setattr("faultpilot.ui.runtime.RagAnswerGenerator", lambda **kwargs: object())
@@ -240,3 +232,69 @@ def test_build_ui_runtime_loads_persisted_bm25_index(
 
     assert calls["loaded"] == bm25_path
     assert calls["built"] is False
+    assert calls["retrieval_sparse"] is loaded_sparse
+
+
+def test_build_ui_runtime_rebuilds_bm25_index_when_corrupted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings_path = tmp_path / "settings.yaml"
+    settings = _build_settings(tmp_path)
+    bm25_path = Path(settings.raw["paths"]["bm25_index"])
+    bm25_path.write_bytes(b"corrupted")
+    chunks = [_chunk("1", "Fanuc", "A06B")]
+
+    rebuilt_sparse = object()
+    calls: dict[str, object] = {
+        "loaded": False,
+        "built_with": None,
+        "retrieval_sparse": None,
+    }
+
+    monkeypatch.setattr("faultpilot.ui.runtime.load_settings", lambda _: settings)
+    monkeypatch.setattr("faultpilot.ui.runtime.load_chunks", lambda _: chunks)
+
+    def fake_load_bm25_index(path: Path):
+        calls["loaded"] = path
+        raise ValueError("corrupted index")
+
+    monkeypatch.setattr("faultpilot.ui.runtime.load_bm25_index", fake_load_bm25_index)
+    monkeypatch.setattr(
+        "faultpilot.ui.runtime.build_bm25_index",
+        lambda loaded_chunks: calls.__setitem__("built_with", loaded_chunks) or rebuilt_sparse,
+    )
+    monkeypatch.setattr("faultpilot.ui.runtime.build_dense_index", lambda *args, **kwargs: object())
+    monkeypatch.setattr("faultpilot.ui.runtime.CrossEncoderReranker", lambda **kwargs: object())
+    monkeypatch.setattr(
+        "faultpilot.ui.runtime.HybridRetrievalService",
+        lambda **kwargs: calls.__setitem__("retrieval_sparse", kwargs["sparse_retriever"]) or object(),
+    )
+    monkeypatch.setattr("faultpilot.ui.runtime.LocalIntentClassifier", lambda: object())
+    monkeypatch.setattr("faultpilot.ui.runtime.IntentRouter", lambda **kwargs: object())
+    monkeypatch.setattr("faultpilot.ui.runtime.RagAnswerGenerator", lambda **kwargs: object())
+    monkeypatch.setattr("faultpilot.ui.runtime.CitationGuard", lambda **kwargs: object())
+    monkeypatch.setattr("faultpilot.ui.runtime.build_rag_graph", lambda **kwargs: object())
+    monkeypatch.setattr("faultpilot.ui.runtime.RagPipelineService", lambda *args: object())
+
+    build_ui_runtime(settings_path)
+
+    assert calls["loaded"] == bm25_path
+    assert calls["built_with"] == chunks
+    assert calls["retrieval_sparse"] is rebuilt_sparse
+
+
+def _build_settings(tmp_path: Path) -> SimpleNamespace:
+    return SimpleNamespace(
+        raw={
+            "paths": {
+                "chunks_jsonl_dir": str(tmp_path / "processed"),
+                "bm25_index": str(tmp_path / "bm25_index.pkl"),
+                "chroma_db": str(tmp_path / "chroma_db"),
+            },
+            "embeddings": {"model_name": "dense-model"},
+            "reranker": {"model_name": "reranker-model"},
+            "routing": {"ambiguous_threshold": 0.42, "local_first": True},
+            "rag": {"max_context_chars": 1234, "max_regeneration_attempts": 2},
+        }
+    )
