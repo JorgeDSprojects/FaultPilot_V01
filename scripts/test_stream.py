@@ -18,7 +18,12 @@ def main() -> int:
 
     for idx, state in enumerate(generator, start=1):
         chat, traceability, sources, _ = state
-        print(f"chunk={idx} assistant_len={len(chat[-1][1])}")
+        last_message = chat[-1] if chat else {"content": ""}
+        if isinstance(last_message, dict):
+            assistant_text = str(last_message.get("content", ""))
+        else:
+            assistant_text = str(last_message[1]) if len(last_message) > 1 else ""
+        print(f"chunk={idx} assistant_len={len(assistant_text)}")
         if idx == 1:
             print(traceability)
             print(sources)
