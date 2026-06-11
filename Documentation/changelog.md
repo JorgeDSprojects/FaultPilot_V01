@@ -92,3 +92,20 @@
 
 ### Verification
 - Full automated suite: `uv run python -m pytest tests -v` -> 33 passed.
+
+## 2026-06-11 - Hito 4: UI Integration (Gradio)
+
+### Added
+- UI module settings parser: `faultpilot/ui/settings.py`.
+- UI settings tests: `tests/ui/test_settings.py`.
+- Spaces runtime dependency manifest: `requirements.txt`.
+- Training guide for UI integration and deployment:
+  - `Documentation/Training/04_ui_integration_tutorial.md`
+
+### Changed
+- `config/settings.yaml` UI block now includes `traceability_open_default: false`.
+- `README.md` now documents local execution and Hugging Face Spaces deployment.
+
+### Verification
+- `uv run python -m pytest tests/ui/test_settings.py -v`
+- `uv run python -m pytest tests -v`
