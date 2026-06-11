@@ -33,7 +33,7 @@ class _StubRagService:
         )
 
 
-def test_stream_chat_response_yields_multiple_updates() -> None:
+def test_stream_chat_response_yields_independent_incremental_snapshots() -> None:
     rag_service = _StubRagService()
     generator = stream_chat_response(
         rag_service=rag_service,
@@ -44,18 +44,31 @@ def test_stream_chat_response_yields_multiple_updates() -> None:
     )
 
     first = next(generator)
+    first_chat = first[0]
+    first_text = first_chat[0][1]
+
     second = next(generator)
+    second_chat = second[0]
+    second_text = second_chat[0][1]
 
     assert len(first) == 4
-    assert len(first[0]) == 1
-    assert first[0][0][0] == "What is AL-09?"
-    assert len(first[0][0][1]) > 0
-    assert len(second[0][0][1]) >= len(first[0][0][1])
+    assert len(first_chat) == 1
+    assert first_chat[0][0] == "What is AL-09?"
+    assert len(first_text) > 0
+    assert second_text.startswith(first_text)
+    assert len(second_text) > len(first_text)
+    assert first_chat is not second_chat
+    assert first_chat[0][1] == first_text
     assert first[1] == second[1]
     assert first[2] == second[2]
     assert first[1].startswith("### Traceability")
     assert first[2].startswith("### Sources")
     assert first[3] == ""
+
+    lengths = [len(first_text), len(second_text)]
+    lengths.extend(len(state[0][0][1]) for state in generator)
+    assert lengths == sorted(lengths)
+    assert len(set(lengths)) == len(lengths)
     assert len(rag_service.calls) == 1
 
 

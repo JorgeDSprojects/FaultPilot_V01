@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Iterator
+from typing import Iterator, Protocol
 
+from faultpilot.rag.schemas import RagAnswer
 from faultpilot.retrieval.schemas import RetrievalFilters
 from faultpilot.ui.viewmodels import format_sources_markdown, format_traceability_markdown
+
+
+class RagServiceProtocol(Protocol):
+    def answer(
+        self,
+        query: str,
+        filters: RetrievalFilters | None = None,
+    ) -> RagAnswer: ...
 
 
 def _normalize_filter(value: str | None) -> str | None:
@@ -24,7 +33,7 @@ def _chunk_text(value: str, size: int = 32) -> list[str]:
 
 
 def stream_chat_response(
-    rag_service,
+    rag_service: RagServiceProtocol,
     query: str,
     history: list[tuple[str, str]],
     manufacturer: str | None,
@@ -32,7 +41,7 @@ def stream_chat_response(
 ) -> Iterator[tuple[list[tuple[str, str]], str, str, str]]:
     clean_query = query.strip()
     if not clean_query:
-        yield history, "### Traceability\n- Empty query", "### Sources\n- N/A", ""
+        yield [*history], "### Traceability\n- Empty query", "### Sources\n- N/A", ""
         return
 
     filters = RetrievalFilters(
@@ -45,9 +54,9 @@ def stream_chat_response(
     traceability_md = format_traceability_markdown(answer.intent, answer.traceability)
     sources_md = format_sources_markdown(answer.citations)
 
-    chat = [*history, (clean_query, "")]
+    history_snapshot = [*history]
     assistant_text = ""
     for piece in _chunk_text(answer.answer_text):
         assistant_text += piece
-        chat[-1] = (clean_query, assistant_text)
-        yield chat, traceability_md, sources_md, ""
+        chat_snapshot = [*history_snapshot, (clean_query, assistant_text)]
+        yield chat_snapshot, traceability_md, sources_md, ""
