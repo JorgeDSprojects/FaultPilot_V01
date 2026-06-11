@@ -6,3 +6,7 @@ __pycache__/
 # Retrieval runtime artifacts (derived)
 data/processed/bm25_index.pkl
 data/processed/chroma_db/
+
+# Local isolated workspaces
+.worktrees/
+worktrees/
