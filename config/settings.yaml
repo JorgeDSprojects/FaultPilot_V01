@@ -1,0 +1,74 @@
+# ============================================================
+# FaultPilot — System Settings
+# ============================================================
+
+# --- Paths ---
+paths:
+  chunks_jsonl_dir: "data/processed"          # Directory containing parsed JSONL chunk files.
+  chroma_db: "data/processed/chroma_db"       # Local persistence directory for Chroma collections.
+  bm25_index: "data/processed/bm25_index.pkl" # Serialized BM25 index artifact path.
+  raw_pdfs: "data/raw"                        # Source PDF directory used during ingestion/indexing.
+
+# --- Embedding model ---
+embeddings:
+  model_name: "sentence-transformers/all-MiniLM-L6-v2" # Dense embedding model used for semantic retrieval.
+  device: "cpu"                                        # Runtime device for embedding inference.
+  normalize: true                                      # Whether to L2-normalize embeddings before indexing/querying.
+
+# --- Reranker ---
+reranker:
+  enabled: true                                   # Enables cross-encoder reranking after hybrid fusion.
+  model_name: "cross-encoder/ms-marco-MiniLM-L-6-v2" # Cross-encoder model used for final relevance ordering.
+  max_length: 512                                 # Maximum token length per query-document pair.
+  batch_size: 16                                  # Number of pairs processed per inference batch.
+  device: "cpu"                                  # Runtime device for reranker inference.
+
+# --- Retrieval pipeline (RRF-based) ---
+retrieval:
+  bm25_k: 40                   # Number of BM25 candidates retrieved before fusion.
+  dense_k: 40                  # Number of dense candidates retrieved before fusion.
+  rrf_k: 60                    # RRF constant controlling rank contribution smoothness.
+  top_n_rerank: 25             # Number of fused candidates passed to reranker.
+  final_k: 8                   # Number of final results returned to downstream pipeline.
+  min_rrf_score: 0.0           # Minimum RRF score threshold to keep low-signal candidates.
+  max_context_chars: 6000      # Max combined context length passed to generation stage.
+  dedup_by: "chunk_id"         # Field used to deduplicate candidates across retrievers.
+
+  route_profiles:
+    alarm_lookup:
+      bm25_k: 60               # Alarm route prioritizes exact sparse retrieval breadth.
+      dense_k: 20              # Alarm route uses fewer dense candidates for precision.
+      top_n_rerank: 30         # Alarm route reranks a wider shortlist before final cut.
+    troubleshooting:
+      bm25_k: 25               # Troubleshooting route keeps sparse branch lighter.
+      dense_k: 60              # Troubleshooting route emphasizes semantic dense retrieval.
+      top_n_rerank: 30         # Troubleshooting route reranks enough mixed evidence.
+    programming:
+      bm25_k: 20               # Programming route keeps sparse retrieval minimal.
+      dense_k: 60              # Programming route relies on semantic recall from dense search.
+      top_n_rerank: 25         # Programming route reranks a focused candidate subset.
+
+# --- Indexing behavior ---
+indexing:
+  rebuild_on_start: false      # Rebuilds indexes at startup when true, otherwise reuses persisted artifacts.
+  bm25_tokenizer: "simple"     # Tokenizer strategy used to build/query BM25 index.
+  persist_manifest: true       # Writes indexing metadata manifest for traceability and audits.
+
+# --- Query routing ---
+routing:
+  regex_first: true            # Applies cheap local regex routing before any model-based routing.
+  ambiguous_threshold: 0.55    # Confidence threshold below which route is treated as ambiguous.
+
+# --- Observability ---
+observability:
+  log_level: "INFO"            # Global logging verbosity level.
+  trace_retrieval: true        # Logs intermediate retrieval stages and score traces.
+  dump_debug_json: false       # Persists debug payloads to disk for offline inspection.
+
+# --- Gradio UI defaults ---
+ui:
+  title: "FaultPilot — OT Troubleshooting Assistant" # Default Gradio app title.
+  server_port: 7860                                  # Local server port for Gradio runtime.
+  theme: "soft"                                      # Gradio visual theme preset.
+  default_manufacturer: "All"                        # Default manufacturer filter selected in UI.
+  show_score_breakdown: true                         # Displays BM25/Dense/RRF/Reranker score details in UI.
