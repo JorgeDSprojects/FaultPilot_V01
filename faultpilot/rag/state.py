@@ -23,3 +23,6 @@ class RagGraphState(TypedDict, total=False):
     citations: list[Citation]
     draft_answer: str
     final_answer: str
+    routing_ms: float
+    retrieval_ms: float
+    generation_ms: float

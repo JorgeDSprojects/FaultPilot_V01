@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from time import perf_counter
+
 from langgraph.graph import END, START, StateGraph
 
 from faultpilot.rag.context_builder import build_grounded_context
@@ -21,6 +23,7 @@ def build_rag_graph(
     guard = citation_guard or CitationGuard(max_regeneration_attempts=1)
 
     def route_intent(state: RagGraphState) -> RagGraphState:
+        started_at = perf_counter()
         decision = router.route(state["query"])
         return {
             "intent": decision.intent,
@@ -28,16 +31,21 @@ def build_rag_graph(
             "routing_source": decision.source,
             "degraded_mode": decision.degraded_mode,
             "warning": decision.warning,
+            "routing_ms": (perf_counter() - started_at) * 1000.0,
         }
 
     def retrieve(state: RagGraphState) -> RagGraphState:
+        started_at = perf_counter()
         filters = state.get("filters", RetrievalFilters())
         result = retrieval_service.hybrid_retrieve(
             query=state["query"],
             route=state["intent"],
             filters=filters,
         )
-        return {"retrieval_result": result}
+        return {
+            "retrieval_result": result,
+            "retrieval_ms": (perf_counter() - started_at) * 1000.0,
+        }
 
     def build_context(state: RagGraphState) -> RagGraphState:
         result = state["retrieval_result"]
@@ -45,6 +53,7 @@ def build_rag_graph(
         return {"context": context, "citations": citations}
 
     def generate_answer(state: RagGraphState) -> RagGraphState:
+        started_at = perf_counter()
         draft = generator.generate(
             query=state["query"],
             intent=state["intent"],
@@ -52,7 +61,10 @@ def build_rag_graph(
             citations=state.get("citations", []),
             strict=False,
         )
-        return {"draft_answer": draft}
+        return {
+            "draft_answer": draft,
+            "generation_ms": (perf_counter() - started_at) * 1000.0,
+        }
 
     def enforce_citations(state: RagGraphState) -> RagGraphState:
         final_answer, degraded, warning = guard.enforce(

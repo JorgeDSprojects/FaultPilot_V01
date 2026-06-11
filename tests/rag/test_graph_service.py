@@ -44,3 +44,10 @@ def test_rag_pipeline_service_returns_structured_answer() -> None:
     assert result.intent == "alarm_lookup"
     assert len(result.citations) == 1
     assert "ac_spindle_alarm_list.pdf" in result.answer_text
+    assert result.traceability.routing_source == "local"
+    assert result.traceability.intent_confidence == 0.9
+    assert result.traceability.degraded_mode is False
+    assert result.traceability.warning is None
+    assert result.traceability.timing_ms["routing"] >= 0.0
+    assert result.traceability.timing_ms["retrieval"] >= 0.0
+    assert result.traceability.timing_ms["generation"] >= 0.0
