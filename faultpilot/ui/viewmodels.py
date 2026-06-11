@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Mapping
+
 from faultpilot.rag.schemas import Citation, TraceabilitySnapshot
 
 
@@ -19,12 +21,30 @@ def format_sources_markdown(citations: tuple[Citation, ...]) -> str:
 def format_traceability_markdown(intent: str, snapshot: TraceabilitySnapshot) -> str:
     """Render traceability metadata for markdown display."""
     timing = snapshot.timing_ms
-    return (
-        "### Traceability\n"
-        f"- Intent: `{intent}`\n"
-        f"- Router source: `{snapshot.routing_source}`\n"
-        f"- Confidence: `{snapshot.intent_confidence:.2f}`\n"
-        f"- Routing: `{timing['routing']:.1f} ms`\n"
-        f"- Retrieval: `{timing['retrieval']:.1f} ms`\n"
-        f"- Generation: `{timing['generation']:.1f} ms`"
+    degraded = "yes" if snapshot.degraded_mode else "no"
+    lines = [
+        "### Traceability",
+        f"- Intent: `{intent}`",
+        f"- Router source: `{snapshot.routing_source}`",
+        f"- Confidence: `{snapshot.intent_confidence:.2f}`",
+        f"- Degraded: `{degraded}`",
+    ]
+    if snapshot.warning:
+        lines.append(f"- Warning: `{snapshot.warning}`")
+
+    lines.extend(
+        (
+            f"- Routing: `{_timing_value(timing, 'routing'):.1f} ms`",
+            f"- Retrieval: `{_timing_value(timing, 'retrieval'):.1f} ms`",
+            f"- Generation: `{_timing_value(timing, 'generation'):.1f} ms`",
+        )
     )
+    return "\n".join(lines)
+
+
+def _timing_value(timing: Mapping[str, object], key: str) -> float:
+    """Read a timing value with numeric fallback."""
+    value = timing.get(key, 0.0)
+    if isinstance(value, (int, float)):
+        return float(value)
+    return 0.0

@@ -16,6 +16,13 @@ def test_format_sources_markdown_includes_doc_and_page() -> None:
     assert "p.14" in markdown
 
 
+def test_format_sources_markdown_handles_empty_citations() -> None:
+    markdown = format_sources_markdown(())
+
+    assert "### Sources" in markdown
+    assert "No grounded sources available" in markdown
+
+
 def test_format_traceability_markdown_includes_intent_source_and_timings() -> None:
     snapshot = TraceabilitySnapshot(
         routing_source="local",
@@ -32,3 +39,36 @@ def test_format_traceability_markdown_includes_intent_source_and_timings() -> No
     assert "5.0 ms" in markdown
     assert "120.0 ms" in markdown
     assert "80.0 ms" in markdown
+
+
+def test_format_traceability_markdown_includes_degraded_warning() -> None:
+    snapshot = TraceabilitySnapshot(
+        routing_source="fallback",
+        intent_confidence=0.41,
+        degraded_mode=True,
+        warning="Router fallback activated",
+        timing_ms={"routing": 8.0, "retrieval": 0.0, "generation": 0.0},
+    )
+
+    markdown = format_traceability_markdown(intent="troubleshooting", snapshot=snapshot)
+
+    assert "troubleshooting" in markdown
+    assert "fallback" in markdown
+    assert "Degraded" in markdown
+    assert "yes" in markdown.lower()
+    assert "Router fallback activated" in markdown
+
+
+def test_format_traceability_markdown_uses_timing_fallback_for_missing_values() -> None:
+    snapshot = TraceabilitySnapshot(
+        routing_source="local",
+        intent_confidence=0.95,
+        degraded_mode=False,
+        warning=None,
+        timing_ms={"routing": 7.5},  # type: ignore[arg-type]
+    )
+
+    markdown = format_traceability_markdown(intent="alarm_lookup", snapshot=snapshot)
+
+    assert "7.5 ms" in markdown
+    assert "0.0 ms" in markdown
