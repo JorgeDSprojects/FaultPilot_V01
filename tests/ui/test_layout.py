@@ -13,6 +13,7 @@ def test_build_layout_has_traceability_collapsed_default() -> None:
         equipment=["All", "A06B"],
         default_manufacturer="Fanuc",
         traceability_open=False,
+        default_intent_mode="Auto",
     )
 
     assert isinstance(demo, gr.Blocks)
@@ -27,6 +28,7 @@ def test_build_layout_returns_core_components() -> None:
         equipment=["All", "A06B"],
         default_manufacturer="Fanuc",
         traceability_open=False,
+        default_intent_mode="Auto",
     )
 
     assert isinstance(handles.chatbot, gr.Chatbot)
@@ -35,5 +37,6 @@ def test_build_layout_returns_core_components() -> None:
     assert isinstance(handles.equipment, gr.Dropdown)
     assert isinstance(handles.send_button, gr.Button)
     assert isinstance(handles.clear_button, gr.Button)
+    assert isinstance(handles.intent_mode, gr.Dropdown)
     assert isinstance(handles.traceability_md, gr.Markdown)
     assert isinstance(handles.sources_md, gr.Markdown)

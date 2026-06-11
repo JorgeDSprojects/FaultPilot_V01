@@ -11,10 +11,13 @@ from faultpilot.ui.controllers import stream_chat_response
 
 @dataclass
 class _StubRagService:
-    calls: list[tuple[str, object]] = field(default_factory=list)
+    calls: list[tuple[str, object, object]] = field(default_factory=list)
+    should_raise: bool = False
 
-    def answer(self, query: str, filters=None) -> RagAnswer:
-        self.calls.append((query, filters))
+    def answer(self, query: str, filters=None, intent_override=None) -> RagAnswer:
+        self.calls.append((query, filters, intent_override))
+        if self.should_raise:
+            raise RuntimeError("backend exploded")
         return RagAnswer(
             intent="alarm_lookup",
             answer_text=(
@@ -42,6 +45,7 @@ def test_stream_chat_response_yields_independent_incremental_snapshots() -> None
         history=[],
         manufacturer="Fanuc",
         equipment="A06B",
+        intent_mode="Auto",
     )
 
     first = next(generator)
@@ -65,6 +69,8 @@ def test_stream_chat_response_yields_independent_incremental_snapshots() -> None
     assert first[1] == second[1]
     assert first[2] == second[2]
     assert first[1].startswith("### Traceability")
+    assert "Top grounded context" in first[1]
+    assert "ac_spindle_alarm_list.pdf" in first[1]
     assert first[2].startswith("### Sources")
     assert first[3] == ""
 
@@ -83,13 +89,32 @@ def test_stream_chat_response_normalizes_all_filters_to_none() -> None:
         history=[],
         manufacturer="All",
         equipment="  All  ",
+        intent_mode="Auto",
     )
 
     next(generator)
 
-    _, filters = rag_service.calls[0]
+    _, filters, intent_override = rag_service.calls[0]
     assert filters.manufacturer is None
     assert filters.equipment is None
+    assert intent_override is None
+
+
+def test_stream_chat_response_passes_manual_intent_override() -> None:
+    rag_service = _StubRagService()
+    generator = stream_chat_response(
+        rag_service=rag_service,
+        query="AL-09",
+        history=[],
+        manufacturer="All",
+        equipment="All",
+        intent_mode="programming",
+    )
+
+    next(generator)
+
+    _, _, intent_override = rag_service.calls[0]
+    assert intent_override == "programming"
 
 
 def test_stream_chat_response_empty_query_returns_validation_state() -> None:
@@ -104,6 +129,7 @@ def test_stream_chat_response_empty_query_returns_validation_state() -> None:
         history=history,
         manufacturer="Fanuc",
         equipment="A06B",
+        intent_mode="Auto",
     )
 
     first = next(generator)
@@ -126,6 +152,7 @@ def test_stream_chat_response_payload_is_chatbot_postprocess_compatible() -> Non
         history=[],
         manufacturer="Fanuc",
         equipment="A06B",
+        intent_mode="Auto",
     )
 
     first = next(generator)
@@ -135,3 +162,28 @@ def test_stream_chat_response_payload_is_chatbot_postprocess_compatible() -> Non
     postprocessed = chatbot.postprocess(payload)
 
     assert postprocessed is not None
+
+
+def test_stream_chat_response_backend_error_returns_stable_degraded_payload() -> None:
+    rag_service = _StubRagService(should_raise=True)
+    generator = stream_chat_response(
+        rag_service=rag_service,
+        query="What is AL-09?",
+        history=[],
+        manufacturer="Fanuc",
+        equipment="A06B",
+        intent_mode="Auto",
+    )
+
+    first = next(generator)
+
+    with pytest.raises(StopIteration):
+        next(generator)
+
+    assert first[0][0] == {"role": "user", "content": "What is AL-09?"}
+    assert first[0][1]["role"] == "assistant"
+    assert "degraded response" in first[0][1]["content"].lower()
+    assert "backend_error" in first[1]
+    assert "Degraded" in first[1]
+    assert "No grounded sources available" in first[2]
+    assert first[3] == ""

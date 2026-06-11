@@ -9,6 +9,7 @@ import gradio as gr
 
 TRACEABILITY_PLACEHOLDER = "### Traceability\n- Waiting for query"
 SOURCES_PLACEHOLDER = "### Sources\n- Waiting for query"
+INTENT_MODE_CHOICES = ["Auto", "alarm_lookup", "troubleshooting", "programming"]
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,7 @@ class LayoutHandles:
     equipment: gr.Dropdown
     send_button: gr.Button
     clear_button: gr.Button
+    intent_mode: gr.Dropdown
     traceability_md: gr.Markdown
     sources_md: gr.Markdown
     traceability_open_default: bool
@@ -43,6 +45,7 @@ def build_layout(
     equipment: list[str],
     default_manufacturer: str,
     traceability_open: bool,
+    default_intent_mode: str,
 ) -> tuple[gr.Blocks, LayoutHandles]:
     with gr.Blocks(title=title) as demo:
         gr.Markdown(f"## {title}\nIndustrial troubleshooting assistant")
@@ -69,6 +72,11 @@ def build_layout(
                         value=_default_choice(equipment),
                         label="Equipment",
                     )
+                    intent_mode_dd = gr.Dropdown(
+                        choices=INTENT_MODE_CHOICES,
+                        value=_resolve_choice(INTENT_MODE_CHOICES, default_intent_mode),
+                        label="Intent mode",
+                    )
 
             with gr.Column(scale=3):
                 with gr.Accordion("Traceability", open=traceability_open):
@@ -82,6 +90,7 @@ def build_layout(
         equipment=equipment_dd,
         send_button=send_button,
         clear_button=clear_button,
+        intent_mode=intent_mode_dd,
         traceability_md=traceability_md,
         sources_md=sources_md,
         traceability_open_default=traceability_open,

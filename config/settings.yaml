@@ -79,5 +79,6 @@ ui:
   server_port: 7860                                  # Local server port for Gradio runtime.
   theme: "soft"                                      # Gradio visual theme preset.
   default_manufacturer: "All"                        # Default manufacturer filter selected in UI.
+  default_intent_mode: "Auto"                        # Intent routing mode (Auto or explicit route override).
   show_score_breakdown: true                         # Displays BM25/Dense/RRF/Reranker score details in UI.
   traceability_open_default: false                   # Keeps traceability accordion collapsed on app load.

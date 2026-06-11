@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from faultpilot.rag.schemas import RagAnswer, TraceabilitySnapshot
 from faultpilot.retrieval.schemas import RetrievalFilters
+from faultpilot.routing.schemas import IntentType
 
 
 class RagPipelineService:
@@ -16,10 +17,12 @@ class RagPipelineService:
         self,
         query: str,
         filters: RetrievalFilters | None = None,
+        intent_override: IntentType | None = None,
     ) -> RagAnswer:
         state = {
             "query": query,
             "filters": filters or RetrievalFilters(),
+            "intent_override": intent_override,
         }
         output = self._graph.invoke(state)
         warnings = tuple(filter(None, [output.get("warning")]))

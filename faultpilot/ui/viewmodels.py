@@ -18,7 +18,11 @@ def format_sources_markdown(citations: tuple[Citation, ...]) -> str:
     return "\n".join(lines)
 
 
-def format_traceability_markdown(intent: str, snapshot: TraceabilitySnapshot) -> str:
+def format_traceability_markdown(
+    intent: str,
+    snapshot: TraceabilitySnapshot,
+    citations: tuple[Citation, ...],
+) -> str:
     """Render traceability metadata for markdown display."""
     timing = snapshot.timing_ms
     degraded = "yes" if snapshot.degraded_mode else "no"
@@ -39,6 +43,12 @@ def format_traceability_markdown(intent: str, snapshot: TraceabilitySnapshot) ->
             f"- Generation: `{_timing_value(timing, 'generation'):.1f} ms`",
         )
     )
+    lines.append("- Top grounded context:")
+    if citations:
+        for citation in citations[:3]:
+            lines.append(f"  - `{citation.source_doc}` (p.{citation.page})")
+    else:
+        lines.append("  - No grounded sources available")
     return "\n".join(lines)
 
 

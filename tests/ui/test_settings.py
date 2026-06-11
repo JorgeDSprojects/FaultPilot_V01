@@ -13,6 +13,7 @@ def test_read_ui_settings_applies_defaults() -> None:
     assert result.server_port == 7860
     assert result.theme == "soft"
     assert result.default_manufacturer == "All"
+    assert result.default_intent_mode == "Auto"
     assert result.traceability_open_default is False
 
 

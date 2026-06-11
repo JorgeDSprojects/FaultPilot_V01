@@ -6,7 +6,11 @@ from faultpilot.routing.schemas import RoutingDecision
 
 
 class _StubRouter:
+    def __init__(self) -> None:
+        self.calls = 0
+
     def route(self, query: str) -> RoutingDecision:
+        self.calls += 1
         return RoutingDecision(intent="alarm_lookup", confidence=0.9, source="local")
 
 
@@ -31,8 +35,9 @@ class _StubGenerator:
 
 
 def test_rag_pipeline_service_returns_structured_answer() -> None:
+    router = _StubRouter()
     graph = build_rag_graph(
-        router=_StubRouter(),
+        router=router,
         retrieval_service=_StubRetrievalService(),
         generator=_StubGenerator(),
         max_context_chars=1000,
@@ -51,3 +56,22 @@ def test_rag_pipeline_service_returns_structured_answer() -> None:
     assert result.traceability.timing_ms["routing"] >= 0.0
     assert result.traceability.timing_ms["retrieval"] >= 0.0
     assert result.traceability.timing_ms["generation"] >= 0.0
+    assert router.calls == 1
+
+
+def test_rag_pipeline_service_supports_manual_intent_override() -> None:
+    router = _StubRouter()
+    graph = build_rag_graph(
+        router=router,
+        retrieval_service=_StubRetrievalService(),
+        generator=_StubGenerator(),
+        max_context_chars=1000,
+    )
+    service = RagPipelineService(graph)
+
+    result = service.answer("Need PLC loop code", intent_override="programming")
+
+    assert result.intent == "programming"
+    assert result.traceability.routing_source == "manual_override"
+    assert result.traceability.intent_confidence == 1.0
+    assert router.calls == 0

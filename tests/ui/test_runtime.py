@@ -192,6 +192,7 @@ def test_build_ui_runtime_wires_dependencies(tmp_path: Path, monkeypatch: pytest
     assert runtime.ui_settings.traceability_open_default is True
     assert runtime.ui_settings.theme == "glass"
     assert runtime.ui_settings.default_manufacturer == "Fanuc"
+    assert runtime.ui_settings.default_intent_mode == "Auto"
     assert runtime.ui_settings.server_port == 8899
     assert runtime.manufacturers == ["All", "Bosch", "Fanuc"]
     assert runtime.equipment == ["All", "A06B", "CC220"]
@@ -306,6 +307,7 @@ def _build_settings(tmp_path: Path) -> SimpleNamespace:
                 "server_port": 8899,
                 "theme": "glass",
                 "default_manufacturer": "Fanuc",
+                "default_intent_mode": "Auto",
                 "traceability_open_default": True,
             },
         }

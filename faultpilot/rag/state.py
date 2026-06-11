@@ -6,6 +6,7 @@ from typing import TypedDict
 
 from faultpilot.rag.schemas import Citation
 from faultpilot.retrieval.schemas import RetrievalFilters, RetrievalResult
+from faultpilot.routing.schemas import IntentType
 
 
 class RagGraphState(TypedDict, total=False):
@@ -13,7 +14,8 @@ class RagGraphState(TypedDict, total=False):
 
     query: str
     filters: RetrievalFilters
-    intent: str
+    intent: IntentType
+    intent_override: IntentType | None
     intent_confidence: float
     routing_source: str
     degraded_mode: bool

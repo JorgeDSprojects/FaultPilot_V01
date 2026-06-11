@@ -25,6 +25,7 @@ def test_create_app_returns_blocks(monkeypatch) -> None:
                 server_port=9876,
                 theme="soft",
                 default_manufacturer="All",
+                default_intent_mode="Auto",
                 traceability_open_default=False,
             ),
         )
@@ -78,6 +79,7 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
             server_port=8899,
             theme="glass",
             default_manufacturer="Fanuc",
+            default_intent_mode="Auto",
             traceability_open_default=True,
         ),
     )
@@ -88,6 +90,7 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
     query_box = _FakeTextbox()
     manufacturer = object()
     equipment = object()
+    intent_mode = object()
     send_button = _FakeButton()
     clear_button = _FakeButton()
     traceability_md = object()
@@ -97,6 +100,7 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         query_box=query_box,
         manufacturer=manufacturer,
         equipment=equipment,
+        intent_mode=intent_mode,
         send_button=send_button,
         clear_button=clear_button,
         traceability_md=traceability_md,
@@ -120,6 +124,7 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         equipment,
         default_manufacturer,
         traceability_open,
+        default_intent_mode,
     ):
         captured_layout_call["title"] = title
         captured_layout_call["theme"] = theme
@@ -127,6 +132,7 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         captured_layout_call["equipment"] = equipment
         captured_layout_call["default_manufacturer"] = default_manufacturer
         captured_layout_call["traceability_open"] = traceability_open
+        captured_layout_call["default_intent_mode"] = default_intent_mode
         return fake_demo, fake_handles
 
     def fake_stream_chat_response(**kwargs):
@@ -144,6 +150,7 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
     assert captured_layout_call["theme"] == "glass"
     assert captured_layout_call["default_manufacturer"] == "Fanuc"
     assert captured_layout_call["traceability_open"] is True
+    assert captured_layout_call["default_intent_mode"] == "Auto"
     assert captured_layout_call["manufacturers"] == fake_runtime.manufacturers
     assert captured_layout_call["equipment"] == fake_runtime.equipment
     assert getattr(demo, "faultpilot_server_port") == 8899
@@ -157,9 +164,9 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
     submit_call = query_box.calls[0]
     clear_call = clear_button.calls[0]
 
-    assert send_call.inputs == [query_box, chatbot, manufacturer, equipment]
+    assert send_call.inputs == [query_box, chatbot, manufacturer, equipment, intent_mode]
     assert send_call.outputs == [chatbot, traceability_md, sources_md, query_box]
-    assert submit_call.inputs == [query_box, chatbot, manufacturer, equipment]
+    assert submit_call.inputs == [query_box, chatbot, manufacturer, equipment, intent_mode]
     assert submit_call.outputs == [chatbot, traceability_md, sources_md, query_box]
     assert clear_call.outputs == [chatbot, traceability_md, sources_md, query_box]
 
@@ -171,6 +178,7 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         ],
         "Fanuc",
         "A06B",
+        "Auto",
     )
     assert stream_result is fake_stream_result
     assert captured_stream_call == {
@@ -182,6 +190,7 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         ],
         "manufacturer": "Fanuc",
         "equipment": "A06B",
+        "intent_mode": "Auto",
     }
     assert captured_settings_path["path"].name == "settings.yaml"
 
@@ -214,6 +223,7 @@ def test_create_app_uses_explicit_settings_path_from_non_repo_cwd(
             server_port=7860,
             theme="soft",
             default_manufacturer="All",
+            default_intent_mode="Auto",
             traceability_open_default=False,
         ),
     )
@@ -230,6 +240,7 @@ def test_create_app_uses_explicit_settings_path_from_non_repo_cwd(
         query_box=_FakeTextbox(),
         manufacturer=object(),
         equipment=object(),
+        intent_mode=object(),
         send_button=_FakeButton(),
         clear_button=_FakeButton(),
         traceability_md=object(),
@@ -259,6 +270,7 @@ def test_create_app_uses_env_settings_path_when_not_explicit(monkeypatch, tmp_pa
             server_port=7860,
             theme="soft",
             default_manufacturer="All",
+            default_intent_mode="Auto",
             traceability_open_default=False,
         ),
     )
@@ -276,6 +288,7 @@ def test_create_app_uses_env_settings_path_when_not_explicit(monkeypatch, tmp_pa
         query_box=_FakeTextbox(),
         manufacturer=object(),
         equipment=object(),
+        intent_mode=object(),
         send_button=_FakeButton(),
         clear_button=_FakeButton(),
         traceability_md=object(),

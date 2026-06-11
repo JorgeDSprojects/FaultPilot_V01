@@ -24,6 +24,17 @@ def build_rag_graph(
 
     def route_intent(state: RagGraphState) -> RagGraphState:
         started_at = perf_counter()
+        intent_override = state.get("intent_override")
+        if intent_override is not None:
+            return {
+                "intent": intent_override,
+                "intent_confidence": 1.0,
+                "routing_source": "manual_override",
+                "degraded_mode": False,
+                "warning": None,
+                "routing_ms": (perf_counter() - started_at) * 1000.0,
+            }
+
         decision = router.route(state["query"])
         return {
             "intent": decision.intent,

@@ -38,6 +38,7 @@ def create_app(settings_path: str | Path | None = None) -> gr.Blocks:
         equipment=runtime.equipment,
         default_manufacturer=runtime.ui_settings.default_manufacturer,
         traceability_open=runtime.ui_settings.traceability_open_default,
+        default_intent_mode=runtime.ui_settings.default_intent_mode,
     )
     setattr(demo, SERVER_PORT_ATTR, runtime.ui_settings.server_port)
     setattr(demo, THEME_ATTR, runtime.ui_settings.theme)
@@ -47,6 +48,7 @@ def create_app(settings_path: str | Path | None = None) -> gr.Blocks:
         history: list[ChatMessage] | None,
         manufacturer: str | None,
         equipment: str | None,
+        intent_mode: str | None,
     ):
         return stream_chat_response(
             rag_service=runtime.rag_service,
@@ -54,6 +56,7 @@ def create_app(settings_path: str | Path | None = None) -> gr.Blocks:
             history=history or [],
             manufacturer=manufacturer,
             equipment=equipment,
+            intent_mode=intent_mode,
         )
 
     common_inputs = [
@@ -61,6 +64,7 @@ def create_app(settings_path: str | Path | None = None) -> gr.Blocks:
         handles.chatbot,
         handles.manufacturer,
         handles.equipment,
+        handles.intent_mode,
     ]
     common_outputs = [
         handles.chatbot,
