@@ -2,17 +2,33 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import gradio as gr
 
-from faultpilot.ui.controllers import stream_chat_response
+from faultpilot.ui.controllers import ChatMessage, stream_chat_response
 from faultpilot.ui.layout import build_layout
 from faultpilot.ui.runtime import build_ui_runtime
 
 
-def create_app() -> gr.Blocks:
-    runtime = build_ui_runtime(Path("config/settings.yaml"))
+SETTINGS_PATH_ENV = "FAULTPILOT_SETTINGS_PATH"
+
+
+def resolve_settings_path(settings_path: str | Path | None = None) -> Path:
+    if settings_path is not None:
+        return Path(settings_path).expanduser().resolve()
+
+    env_value = os.getenv(SETTINGS_PATH_ENV)
+    if env_value:
+        return Path(env_value).expanduser().resolve()
+
+    repo_root = Path(__file__).resolve().parents[2]
+    return (repo_root / "config" / "settings.yaml").resolve()
+
+
+def create_app(settings_path: str | Path | None = None) -> gr.Blocks:
+    runtime = build_ui_runtime(resolve_settings_path(settings_path))
     demo, handles = build_layout(
         title="FaultPilot - OT Troubleshooting Assistant",
         manufacturers=runtime.manufacturers,
@@ -22,7 +38,7 @@ def create_app() -> gr.Blocks:
 
     def _on_submit(
         query: str,
-        history: list[tuple[str, str]] | None,
+        history: list[ChatMessage] | None,
         manufacturer: str | None,
         equipment: str | None,
     ):

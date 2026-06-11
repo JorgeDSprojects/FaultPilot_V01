@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import gradio as gr
 import pytest
 
 from faultpilot.rag.schemas import Citation, RagAnswer, TraceabilitySnapshot
@@ -45,20 +46,22 @@ def test_stream_chat_response_yields_independent_incremental_snapshots() -> None
 
     first = next(generator)
     first_chat = first[0]
-    first_text = first_chat[0][1]
+    first_text = first_chat[1]["content"]
 
     second = next(generator)
     second_chat = second[0]
-    second_text = second_chat[0][1]
+    second_text = second_chat[1]["content"]
 
     assert len(first) == 4
-    assert len(first_chat) == 1
-    assert first_chat[0][0] == "What is AL-09?"
+    assert len(first_chat) == 2
+    assert first_chat[0]["role"] == "user"
+    assert first_chat[0]["content"] == "What is AL-09?"
+    assert first_chat[1]["role"] == "assistant"
     assert len(first_text) > 0
     assert second_text.startswith(first_text)
     assert len(second_text) > len(first_text)
     assert first_chat is not second_chat
-    assert first_chat[0][1] == first_text
+    assert first_chat[1]["content"] == first_text
     assert first[1] == second[1]
     assert first[2] == second[2]
     assert first[1].startswith("### Traceability")
@@ -66,7 +69,7 @@ def test_stream_chat_response_yields_independent_incremental_snapshots() -> None
     assert first[3] == ""
 
     lengths = [len(first_text), len(second_text)]
-    lengths.extend(len(state[0][0][1]) for state in generator)
+    lengths.extend(len(state[0][1]["content"]) for state in generator)
     assert lengths == sorted(lengths)
     assert len(set(lengths)) == len(lengths)
     assert len(rag_service.calls) == 1
@@ -91,7 +94,10 @@ def test_stream_chat_response_normalizes_all_filters_to_none() -> None:
 
 def test_stream_chat_response_empty_query_returns_validation_state() -> None:
     rag_service = _StubRagService()
-    history = [("old q", "old a")]
+    history = [
+        {"role": "user", "content": "old q"},
+        {"role": "assistant", "content": "old a"},
+    ]
     generator = stream_chat_response(
         rag_service=rag_service,
         query="   ",
@@ -110,3 +116,22 @@ def test_stream_chat_response_empty_query_returns_validation_state() -> None:
     assert first[2].startswith("### Sources")
     assert first[3] == ""
     assert rag_service.calls == []
+
+
+def test_stream_chat_response_payload_is_chatbot_postprocess_compatible() -> None:
+    rag_service = _StubRagService()
+    generator = stream_chat_response(
+        rag_service=rag_service,
+        query="What is AL-09?",
+        history=[],
+        manufacturer="Fanuc",
+        equipment="A06B",
+    )
+
+    first = next(generator)
+    payload = first[0]
+    chatbot = gr.Chatbot()
+
+    postprocessed = chatbot.postprocess(payload)
+
+    assert postprocessed is not None
