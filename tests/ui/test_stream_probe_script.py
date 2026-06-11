@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from scripts.test_stream import run_stream_probe
+from faultpilot.ui.stream_probe import run_stream_probe
 
 
 def _state() -> tuple[list[dict[str, str]], str, str, str]:
