@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import gradio as gr
 
 from faultpilot.ui.app import create_app
+from faultpilot.ui.settings import UiSettings
 
 
 def test_create_app_returns_blocks(monkeypatch) -> None:
@@ -19,6 +20,13 @@ def test_create_app_returns_blocks(monkeypatch) -> None:
             rag_service=object(),
             manufacturers=["All", "Fanuc"],
             equipment=["All", "A06B"],
+            ui_settings=UiSettings(
+                title="Configured title",
+                server_port=9876,
+                theme="soft",
+                default_manufacturer="All",
+                traceability_open_default=False,
+            ),
         )
 
     monkeypatch.setattr("faultpilot.ui.app.build_ui_runtime", fake_build_ui_runtime)
@@ -65,6 +73,13 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         rag_service=object(),
         manufacturers=["All", "Fanuc"],
         equipment=["All", "A06B"],
+        ui_settings=UiSettings(
+            title="Configured title",
+            server_port=8899,
+            theme="glass",
+            default_manufacturer="Fanuc",
+            traceability_open_default=True,
+        ),
     )
     fake_stream_result = iter([([("q", "a")], "trace", "sources", "")])
     captured_stream_call: dict[str, object] = {}
@@ -97,10 +112,20 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         captured_settings_path["path"] = _settings_path
         return fake_runtime
 
-    def fake_build_layout(*, title, manufacturers, equipment, traceability_open):
+    def fake_build_layout(
+        *,
+        title,
+        theme,
+        manufacturers,
+        equipment,
+        default_manufacturer,
+        traceability_open,
+    ):
         captured_layout_call["title"] = title
+        captured_layout_call["theme"] = theme
         captured_layout_call["manufacturers"] = manufacturers
         captured_layout_call["equipment"] = equipment
+        captured_layout_call["default_manufacturer"] = default_manufacturer
         captured_layout_call["traceability_open"] = traceability_open
         return fake_demo, fake_handles
 
@@ -115,9 +140,14 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
     demo = create_app()
 
     assert demo is fake_demo
-    assert captured_layout_call["traceability_open"] is False
+    assert captured_layout_call["title"] == "Configured title"
+    assert captured_layout_call["theme"] == "glass"
+    assert captured_layout_call["default_manufacturer"] == "Fanuc"
+    assert captured_layout_call["traceability_open"] is True
     assert captured_layout_call["manufacturers"] == fake_runtime.manufacturers
     assert captured_layout_call["equipment"] == fake_runtime.equipment
+    assert getattr(demo, "faultpilot_server_port") == 8899
+    assert getattr(demo, "faultpilot_theme") == "glass"
 
     assert len(send_button.calls) == 1
     assert len(query_box.calls) == 1
@@ -179,6 +209,13 @@ def test_create_app_uses_explicit_settings_path_from_non_repo_cwd(
         rag_service=object(),
         manufacturers=["All", "Fanuc"],
         equipment=["All", "A06B"],
+        ui_settings=UiSettings(
+            title="Configured title",
+            server_port=7860,
+            theme="soft",
+            default_manufacturer="All",
+            traceability_open_default=False,
+        ),
     )
     captured: dict[str, object] = {}
 
@@ -217,6 +254,13 @@ def test_create_app_uses_env_settings_path_when_not_explicit(monkeypatch, tmp_pa
         rag_service=object(),
         manufacturers=["All", "Fanuc"],
         equipment=["All", "A06B"],
+        ui_settings=UiSettings(
+            title="Configured title",
+            server_port=7860,
+            theme="soft",
+            default_manufacturer="All",
+            traceability_open_default=False,
+        ),
     )
     captured: dict[str, object] = {}
 

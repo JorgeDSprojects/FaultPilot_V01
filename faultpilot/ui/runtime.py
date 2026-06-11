@@ -20,6 +20,7 @@ from faultpilot.retrieval.vector_index import build_dense_index
 from faultpilot.routing.intent_router import IntentRouter
 from faultpilot.routing.local_classifier import LocalIntentClassifier
 from faultpilot.routing.schemas import IntentClassification
+from faultpilot.ui.settings import UiSettings, read_ui_settings
 
 
 class _FallbackLlmClassifier:
@@ -71,6 +72,7 @@ class UiRuntime:
     rag_service: RagPipelineService
     manufacturers: list[str]
     equipment: list[str]
+    ui_settings: UiSettings
 
 
 def collect_filter_options(chunks: Iterable[RetrievedChunk]) -> tuple[list[str], list[str]]:
@@ -88,6 +90,7 @@ def collect_filter_options(chunks: Iterable[RetrievedChunk]) -> tuple[list[str],
 def build_ui_runtime(settings_path: Path) -> UiRuntime:
     settings = load_settings(settings_path)
     config = UiRuntimeConfig.from_settings(settings.raw)
+    ui_settings = read_ui_settings(settings.raw)
 
     chunks = load_chunks(config.chunks_jsonl_dir)
     manufacturers, equipment = collect_filter_options(chunks)
@@ -128,6 +131,7 @@ def build_ui_runtime(settings_path: Path) -> UiRuntime:
         rag_service=RagPipelineService(graph),
         manufacturers=manufacturers,
         equipment=equipment,
+        ui_settings=ui_settings,
     )
 
 

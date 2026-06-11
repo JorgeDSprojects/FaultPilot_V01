@@ -11,8 +11,17 @@ uv run python app.py
 
 Optional settings override:
 
+Windows PowerShell:
+
+```powershell
+$env:FAULTPILOT_SETTINGS_PATH = "path\\to\\settings.yaml"
+uv run python app.py
+```
+
+Linux/macOS shell:
+
 ```bash
-set FAULTPILOT_SETTINGS_PATH=path\to\settings.yaml
+export FAULTPILOT_SETTINGS_PATH="path/to/settings.yaml"
 uv run python app.py
 ```
 
@@ -31,3 +40,8 @@ Recommended repository structure for Spaces:
 4. Add `OPENAI_API_KEY` only if you later wire a provider-backed generator.
 
 After each push, Spaces installs dependencies from `requirements.txt` and launches `app.py` automatically.
+
+## Dependency sync rule
+
+- Source of truth for runtime dependencies is `[project.dependencies]` in `pyproject.toml`.
+- `requirements.txt` exists for Hugging Face Spaces compatibility and must stay in exact sync with `pyproject.toml` in every dependency-changing PR.

@@ -13,6 +13,8 @@ from faultpilot.ui.runtime import build_ui_runtime
 
 
 SETTINGS_PATH_ENV = "FAULTPILOT_SETTINGS_PATH"
+SERVER_PORT_ATTR = "faultpilot_server_port"
+THEME_ATTR = "faultpilot_theme"
 
 
 def resolve_settings_path(settings_path: str | Path | None = None) -> Path:
@@ -30,11 +32,15 @@ def resolve_settings_path(settings_path: str | Path | None = None) -> Path:
 def create_app(settings_path: str | Path | None = None) -> gr.Blocks:
     runtime = build_ui_runtime(resolve_settings_path(settings_path))
     demo, handles = build_layout(
-        title="FaultPilot - OT Troubleshooting Assistant",
+        title=runtime.ui_settings.title,
+        theme=runtime.ui_settings.theme,
         manufacturers=runtime.manufacturers,
         equipment=runtime.equipment,
-        traceability_open=False,
+        default_manufacturer=runtime.ui_settings.default_manufacturer,
+        traceability_open=runtime.ui_settings.traceability_open_default,
     )
+    setattr(demo, SERVER_PORT_ATTR, runtime.ui_settings.server_port)
+    setattr(demo, THEME_ATTR, runtime.ui_settings.theme)
 
     def _on_submit(
         query: str,

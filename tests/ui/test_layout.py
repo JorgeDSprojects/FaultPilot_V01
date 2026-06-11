@@ -8,8 +8,10 @@ from faultpilot.ui.layout import build_layout
 def test_build_layout_has_traceability_collapsed_default() -> None:
     demo, handles = build_layout(
         title="FaultPilot",
+        theme="soft",
         manufacturers=["All", "Fanuc"],
         equipment=["All", "A06B"],
+        default_manufacturer="Fanuc",
         traceability_open=False,
     )
 
@@ -20,8 +22,10 @@ def test_build_layout_has_traceability_collapsed_default() -> None:
 def test_build_layout_returns_core_components() -> None:
     _, handles = build_layout(
         title="FaultPilot",
+        theme="soft",
         manufacturers=["All", "Fanuc"],
         equipment=["All", "A06B"],
+        default_manufacturer="Fanuc",
         traceability_open=False,
     )
 

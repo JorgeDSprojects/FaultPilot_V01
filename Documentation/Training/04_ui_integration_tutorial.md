@@ -50,8 +50,17 @@ Open the URL printed by Gradio (usually `http://127.0.0.1:7860`).
 
 Optional custom settings file:
 
+Windows PowerShell:
+
+```powershell
+$env:FAULTPILOT_SETTINGS_PATH = "path\\to\\settings.yaml"
+uv run python app.py
+```
+
+Linux/macOS shell:
+
 ```bash
-set FAULTPILOT_SETTINGS_PATH=path\to\settings.yaml
+export FAULTPILOT_SETTINGS_PATH="path/to/settings.yaml"
 uv run python app.py
 ```
 
@@ -66,6 +75,9 @@ uv run python app.py
 5. Wait for the Space build to complete and verify the UI loads.
 
 Spaces will install dependencies from `requirements.txt` and start `app.py` automatically.
+
+Dependency maintenance rule:
+- Keep `requirements.txt` synchronized with `[project.dependencies]` in `pyproject.toml`.
 
 ---
 

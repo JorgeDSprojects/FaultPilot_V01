@@ -188,6 +188,11 @@ def test_build_ui_runtime_wires_dependencies(tmp_path: Path, monkeypatch: pytest
     assert calls["guard_attempts"] == 2
     assert calls["graph_max_context_chars"] == 1234
     assert calls["rag_graph"] is graph
+    assert runtime.ui_settings.title == "Configured UI title"
+    assert runtime.ui_settings.traceability_open_default is True
+    assert runtime.ui_settings.theme == "glass"
+    assert runtime.ui_settings.default_manufacturer == "Fanuc"
+    assert runtime.ui_settings.server_port == 8899
     assert runtime.manufacturers == ["All", "Bosch", "Fanuc"]
     assert runtime.equipment == ["All", "A06B", "CC220"]
 
@@ -296,5 +301,12 @@ def _build_settings(tmp_path: Path) -> SimpleNamespace:
             "reranker": {"model_name": "reranker-model"},
             "routing": {"ambiguous_threshold": 0.42, "local_first": True},
             "rag": {"max_context_chars": 1234, "max_regeneration_attempts": 2},
+            "ui": {
+                "title": "Configured UI title",
+                "server_port": 8899,
+                "theme": "glass",
+                "default_manufacturer": "Fanuc",
+                "traceability_open_default": True,
+            },
         }
     )

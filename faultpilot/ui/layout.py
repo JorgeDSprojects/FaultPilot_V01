@@ -30,10 +30,18 @@ def _default_choice(options: list[str]) -> str | None:
     return options[0]
 
 
+def _resolve_choice(options: list[str], preferred: str | None) -> str | None:
+    if preferred and preferred in options:
+        return preferred
+    return _default_choice(options)
+
+
 def build_layout(
     title: str,
+    theme: str,
     manufacturers: list[str],
     equipment: list[str],
+    default_manufacturer: str,
     traceability_open: bool,
 ) -> tuple[gr.Blocks, LayoutHandles]:
     with gr.Blocks(title=title) as demo:
@@ -53,7 +61,7 @@ def build_layout(
                 with gr.Row():
                     manufacturer_dd = gr.Dropdown(
                         choices=manufacturers,
-                        value=_default_choice(manufacturers),
+                        value=_resolve_choice(manufacturers, default_manufacturer),
                         label="Manufacturer",
                     )
                     equipment_dd = gr.Dropdown(
@@ -78,4 +86,5 @@ def build_layout(
         sources_md=sources_md,
         traceability_open_default=traceability_open,
     )
+    setattr(demo, "faultpilot_theme", theme)
     return demo, handles
