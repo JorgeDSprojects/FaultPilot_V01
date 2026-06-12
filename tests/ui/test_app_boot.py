@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import inspect
 import importlib
 import sys
 from types import SimpleNamespace
@@ -83,7 +84,10 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
             traceability_open_default=True,
         ),
     )
-    fake_stream_result = iter([([("q", "a")], "trace", "sources", "")])
+    expected_stream_states = [
+        ([{"role": "assistant", "content": "a"}], "trace", "sources", "")
+    ]
+    fake_stream_result = iter(expected_stream_states)
     captured_stream_call: dict[str, object] = {}
 
     chatbot = object()
@@ -169,8 +173,11 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
     assert submit_call.inputs == [query_box, chatbot, manufacturer, equipment, intent_mode]
     assert submit_call.outputs == [chatbot, traceability_md, sources_md, query_box]
     assert clear_call.outputs == [chatbot, traceability_md, sources_md, query_box]
+    assert inspect.isgeneratorfunction(send_call.fn)
+    assert inspect.isgeneratorfunction(submit_call.fn)
 
-    stream_result = send_call.fn(
+    stream_states = list(
+        send_call.fn(
         "AL-09",
         [
             {"role": "user", "content": "old"},
@@ -179,8 +186,9 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         "Fanuc",
         "A06B",
         "Auto",
+        )
     )
-    assert stream_result is fake_stream_result
+    assert stream_states == expected_stream_states
     assert captured_stream_call == {
         "rag_service": fake_runtime.rag_service,
         "query": "AL-09",

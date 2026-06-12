@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Iterator
 
 import gradio as gr
 
@@ -49,8 +50,8 @@ def create_app(settings_path: str | Path | None = None) -> gr.Blocks:
         manufacturer: str | None,
         equipment: str | None,
         intent_mode: str | None,
-    ):
-        return stream_chat_response(
+    ) -> Iterator[tuple[list[ChatMessage], str, str, str]]:
+        yield from stream_chat_response(
             rag_service=runtime.rag_service,
             query=query,
             history=history or [],
