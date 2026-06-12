@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from faultpilot.alarm_codes import extract_alarm_code, normalize_alarm_code
 from faultpilot.retrieval.config import FaultPilotSettings
 from faultpilot.retrieval.fusion import reciprocal_rank_fusion
 from faultpilot.retrieval.schemas import (
@@ -35,9 +36,19 @@ class HybridRetrievalService:
         filters: RetrievalFilters | None = None,
     ) -> RetrievalResult:
         profile = self._settings.retrieval.profile_for_route(route)
+        query_alarm_code = extract_alarm_code(query) if route == "alarm_lookup" else None
+        retrieval_query = query_alarm_code or query
 
-        bm25_hits = self._sparse.search(query, top_k=profile.bm25_k, filters=filters)
-        dense_hits = self._dense.search(query, top_k=profile.dense_k, filters=filters)
+        bm25_hits = self._sparse.search(
+            retrieval_query,
+            top_k=profile.bm25_k,
+            filters=filters,
+        )
+        dense_hits = self._dense.search(
+            retrieval_query,
+            top_k=profile.dense_k,
+            filters=filters,
+        )
 
         fused_hits = reciprocal_rank_fusion(
             bm25_hits=bm25_hits,
@@ -48,9 +59,17 @@ class HybridRetrievalService:
         filtered_hits = [
             hit for hit in fused_hits if hit.scores.get("rrf", 0.0) >= min_rrf
         ]
+        if query_alarm_code:
+            exact_code_hits = [
+                hit
+                for hit in filtered_hits
+                if normalize_alarm_code(hit.alarm_code) == query_alarm_code
+            ]
+            if exact_code_hits:
+                filtered_hits = exact_code_hits
 
         reranked_hits = self._reranker.rerank(
-            query=query,
+            query=retrieval_query,
             hits=filtered_hits,
             top_n=profile.top_n_rerank,
         )

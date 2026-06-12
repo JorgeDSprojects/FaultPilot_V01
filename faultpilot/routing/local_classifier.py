@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import re
 
+from faultpilot.alarm_codes import extract_alarm_code
 from faultpilot.routing.schemas import IntentClassification
 
-_ALARM_CODE_RE = re.compile(r"\bAL-\d{2}(?:-\d{2})?\b", re.IGNORECASE)
 _NUMERIC_ERROR_RE = re.compile(r"\berror\s*\d{3,5}\b|\b\d{4}\b", re.IGNORECASE)
 
 _PROGRAMMING_KEYWORDS = {
@@ -37,7 +37,7 @@ class LocalIntentClassifier:
     def classify(self, query: str) -> IntentClassification:
         lower = query.lower()
 
-        if _ALARM_CODE_RE.search(query) or _NUMERIC_ERROR_RE.search(query):
+        if extract_alarm_code(query) or _NUMERIC_ERROR_RE.search(query):
             return IntentClassification(
                 intent="alarm_lookup",
                 confidence=0.95,

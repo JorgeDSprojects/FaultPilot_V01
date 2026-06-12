@@ -10,6 +10,24 @@ def test_local_classifier_detects_alarm_lookup() -> None:
     assert result.confidence >= 0.8
 
 
+def test_local_classifier_detects_alarm_lookup_without_dash_separator() -> None:
+    classifier = LocalIntentClassifier()
+
+    result = classifier.classify("al09")
+
+    assert result.intent == "alarm_lookup"
+    assert result.confidence >= 0.8
+
+
+def test_local_classifier_detects_alarm_lookup_with_space_separator() -> None:
+    classifier = LocalIntentClassifier()
+
+    result = classifier.classify("AL 7")
+
+    assert result.intent == "alarm_lookup"
+    assert result.confidence >= 0.8
+
+
 def test_local_classifier_detects_programming() -> None:
     classifier = LocalIntentClassifier()
 
