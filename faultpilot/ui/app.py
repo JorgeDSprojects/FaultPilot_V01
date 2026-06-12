@@ -50,14 +50,17 @@ def create_app(settings_path: str | Path | None = None) -> gr.Blocks:
         manufacturer: str | None,
         equipment: str | None,
         intent_mode: str | None,
+        api_key: str | None,
     ) -> Iterator[tuple[list[ChatMessage], str, str, str]]:
         yield from stream_chat_response(
             rag_service=runtime.rag_service,
+            rag_service_factory=runtime.rag_service_factory,
             query=query,
             history=history or [],
             manufacturer=manufacturer,
             equipment=equipment,
             intent_mode=intent_mode,
+            api_key=api_key,
         )
 
     common_inputs = [
@@ -66,6 +69,7 @@ def create_app(settings_path: str | Path | None = None) -> gr.Blocks:
         handles.manufacturer,
         handles.equipment,
         handles.intent_mode,
+        handles.api_key_box,
     ]
     common_outputs = [
         handles.chatbot,
@@ -73,13 +77,14 @@ def create_app(settings_path: str | Path | None = None) -> gr.Blocks:
         handles.sources_md,
         handles.query_box,
     ]
+    clear_outputs = [*common_outputs, handles.api_key_box]
 
     with demo:
         handles.send_button.click(_on_submit, inputs=common_inputs, outputs=common_outputs)
         handles.query_box.submit(_on_submit, inputs=common_inputs, outputs=common_outputs)
         handles.clear_button.click(
-            lambda: ([], "", "", ""),
-            outputs=common_outputs,
+            lambda: ([], "", "", "", ""),
+            outputs=clear_outputs,
         )
 
     return demo

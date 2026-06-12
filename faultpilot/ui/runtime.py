@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from faultpilot.rag.generator import RagAnswerGenerator
 from faultpilot.rag.graph import build_rag_graph
+from faultpilot.rag.openai_client import OpenAiTextGenerationClient
 from faultpilot.rag.postprocess import CitationGuard
 from faultpilot.rag.service import RagPipelineService
 from faultpilot.retrieval.bm25_index import build_bm25_index, load_bm25_index
@@ -33,6 +34,9 @@ class _FallbackLlmClassifier:
             source="fallback",
             evidence="fallback_ui_classifier",
         )
+
+
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 
 @dataclass(frozen=True)
@@ -70,9 +74,33 @@ class UiRuntimeConfig:
 @dataclass(frozen=True)
 class UiRuntime:
     rag_service: RagPipelineService
+    rag_service_factory: Callable[[str], RagPipelineService]
     manufacturers: list[str]
     equipment: list[str]
     ui_settings: UiSettings
+
+
+def build_openai_rag_service(
+    router: IntentRouter,
+    retrieval_service: HybridRetrievalService,
+    api_key: str,
+    max_context_chars: int,
+    max_regeneration_attempts: int,
+    model_name: str = DEFAULT_OPENAI_MODEL,
+) -> RagPipelineService:
+    generator = RagAnswerGenerator(
+        client=OpenAiTextGenerationClient(api_key=api_key, model=model_name)
+    )
+    graph = build_rag_graph(
+        router=router,
+        retrieval_service=retrieval_service,
+        generator=generator,
+        max_context_chars=max_context_chars,
+        citation_guard=CitationGuard(
+            max_regeneration_attempts=max_regeneration_attempts
+        ),
+    )
+    return RagPipelineService(graph)
 
 
 def collect_filter_options(chunks: Iterable[RetrievedChunk]) -> tuple[list[str], list[str]]:
@@ -127,8 +155,21 @@ def build_ui_runtime(settings_path: Path) -> UiRuntime:
         ),
     )
 
+    baseline_rag_service = RagPipelineService(graph)
+
+    def rag_service_factory(api_key: str) -> RagPipelineService:
+        return build_openai_rag_service(
+            router=router,
+            retrieval_service=retrieval,
+            api_key=api_key,
+            max_context_chars=config.rag_max_context_chars,
+            max_regeneration_attempts=config.rag_max_regeneration_attempts,
+            model_name=DEFAULT_OPENAI_MODEL,
+        )
+
     return UiRuntime(
-        rag_service=RagPipelineService(graph),
+        rag_service=baseline_rag_service,
+        rag_service_factory=rag_service_factory,
         manufacturers=manufacturers,
         equipment=equipment,
         ui_settings=ui_settings,

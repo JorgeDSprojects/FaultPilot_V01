@@ -1,6 +1,9 @@
 # FaultPilot V01
 
-FaultPilot is an OT troubleshooting assistant that combines routing, hybrid retrieval, and citation-guarded RAG with a Gradio user interface.
+## Project description
+
+FaultPilot is an OT troubleshooting assistant for industrial maintenance teams.
+It combines intent routing, hybrid retrieval (BM25 + dense + rerank), and citation-grounded answer generation in a Gradio UI designed for operator workflows.
 
 ## Run locally
 
@@ -25,19 +28,38 @@ export FAULTPILOT_SETTINGS_PATH="path/to/settings.yaml"
 uv run python app.py
 ```
 
+## Required API keys
+
+- Provider-backed grounded answer generation requires an OpenAI API key entered in the UI (`OpenAI API Key` password field).
+
+Key handling statement:
+- Each user supplies the key in the UI (`OpenAI API Key` password field) for the active session.
+- FaultPilot uses the key in memory for request execution and does not store it in project files, repository config, or persistent application storage.
+
+## Quick cost estimate (`gpt-4o-mini`)
+
+- Certification smoke run example: 20 troubleshooting questions, each around <=1000 prompt tokens and <=500 completion tokens.
+- Estimated total is well under **$0.50** with `gpt-4o-mini` (typically only a few cents, depending on prompt length and retries).
+
+## Optional functionalities
+
+- Manufacturer filter selector (for example `Fanuc`, `Bosch`, or `All`).
+- Equipment dropdown selector to scope troubleshooting answers.
+- Collapsible traceability panel with intent, confidence, and timing metadata.
+- Sources panel listing evidence chunks used in each answer.
+- Local settings override via `FAULTPILOT_SETTINGS_PATH`.
+- Retrieval CLI smoke tests for route/manufacturer checks before UI deployment.
+
 ## Deploy on Hugging Face Spaces
 
-- SDK: `gradio`
-- App file: `app.py`
-- Python: `3.10+`
-- Runtime dependencies: `requirements.txt`
+1. Create a new Space with SDK set to `gradio`.
+2. Keep `app.py` and `requirements.txt` at repository root.
+3. Confirm Python runtime is `3.10+`.
+4. The current runtime does not consume an `OPENAI_API_KEY` Space secret; users enter the key in the UI per session.
+5. Push the repository and wait for the build to complete.
 
-Recommended repository structure for Spaces:
-
-1. Keep `app.py` at repository root.
-2. Keep `requirements.txt` at repository root.
-3. Commit `config/settings.yaml` with UI defaults.
-4. Add `OPENAI_API_KEY` only if you later wire a provider-backed generator.
+Public Space URL placeholder:
+- `https://huggingface.co/spaces/<org-or-user>/<space-name>`
 
 After each push, Spaces installs dependencies from `requirements.txt` and launches `app.py` automatically.
 

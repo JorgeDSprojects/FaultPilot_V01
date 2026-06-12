@@ -71,7 +71,8 @@ uv run python app.py
 1. Create a new Space with SDK set to `gradio`.
 2. Push this repository with `app.py` and `requirements.txt` at root.
 3. Confirm Python version is `3.10+`.
-4. Add secrets only when needed (for example `OPENAI_API_KEY` if external LLM generation is enabled later).
+4. No `OPENAI_API_KEY` Space secret is required for normal operation.
+   Users paste their OpenAI key in the UI per session, and the value is not persisted by FaultPilot.
 5. Wait for the Space build to complete and verify the UI loads.
 
 Spaces will install dependencies from `requirements.txt` and start `app.py` automatically.

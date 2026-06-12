@@ -133,7 +133,7 @@ This isolates yield behavior before websocket UI integration.
 
 - Entry point remains `app.py`.
 - Export app object as `demo = create_app()` and run via `demo.launch()`.
-- Use environment variables for secrets (`OPENAI_API_KEY`, etc.).
+- OpenAI API key is provided by the user in the UI per session (no required `OPENAI_API_KEY` deployment secret).
 - Keep config lookup relative to repo root.
 - Update `requirements.txt` with any new UI/runtime dependencies.
 - Add README section for local run and Spaces settings.

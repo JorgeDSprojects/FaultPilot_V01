@@ -40,3 +40,18 @@ def test_build_layout_returns_core_components() -> None:
     assert isinstance(handles.intent_mode, gr.Dropdown)
     assert isinstance(handles.traceability_md, gr.Markdown)
     assert isinstance(handles.sources_md, gr.Markdown)
+
+
+def test_build_layout_exposes_api_key_box() -> None:
+    _, handles = build_layout(
+        title="FaultPilot",
+        theme="soft",
+        manufacturers=["All", "Fanuc"],
+        equipment=["All", "A06B"],
+        default_manufacturer="Fanuc",
+        traceability_open=False,
+        default_intent_mode="Auto",
+    )
+
+    assert isinstance(handles.api_key_box, gr.Textbox)
+    assert handles.api_key_box.type == "password"

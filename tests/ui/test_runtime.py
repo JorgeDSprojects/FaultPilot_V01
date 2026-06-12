@@ -50,6 +50,58 @@ def test_collect_filter_options_accepts_generator_iterable() -> None:
     assert equipment == ["All", "A06B", "CC220"]
 
 
+def test_build_openai_rag_service_wires_provider_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from faultpilot.ui import runtime as runtime_module
+
+    calls: dict[str, object] = {}
+
+    class _FakeOpenAiClient:
+        def __init__(self, api_key: str, model: str) -> None:
+            calls["api_key"] = api_key
+            calls["model"] = model
+
+    class _FakeGenerator:
+        def __init__(self, client) -> None:
+            calls["generator_client"] = client
+
+    class _FakeCitationGuard:
+        def __init__(self, max_regeneration_attempts: int) -> None:
+            calls["guard_attempts"] = max_regeneration_attempts
+
+    graph_sentinel = object()
+
+    def fake_build_rag_graph(**kwargs):
+        calls["graph_kwargs"] = kwargs
+        return graph_sentinel
+
+    class _FakeRagPipelineService:
+        def __init__(self, graph) -> None:
+            calls["graph"] = graph
+
+    monkeypatch.setattr(runtime_module, "OpenAiTextGenerationClient", _FakeOpenAiClient)
+    monkeypatch.setattr(runtime_module, "RagAnswerGenerator", _FakeGenerator)
+    monkeypatch.setattr(runtime_module, "CitationGuard", _FakeCitationGuard)
+    monkeypatch.setattr(runtime_module, "build_rag_graph", fake_build_rag_graph)
+    monkeypatch.setattr(runtime_module, "RagPipelineService", _FakeRagPipelineService)
+
+    router = object()
+    retrieval_service = object()
+    runtime_module.build_openai_rag_service(
+        router=router,
+        retrieval_service=retrieval_service,
+        api_key="sk-test",
+        max_context_chars=1234,
+        max_regeneration_attempts=2,
+        model_name="gpt-4o-mini",
+    )
+
+    assert calls["api_key"] == "sk-test"
+    assert calls["model"] == "gpt-4o-mini"
+    assert calls["graph"] is graph_sentinel
+
+
 def test_build_ui_runtime_wires_dependencies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     settings_path = tmp_path / "settings.yaml"
     settings = _build_settings(tmp_path)
@@ -194,6 +246,7 @@ def test_build_ui_runtime_wires_dependencies(tmp_path: Path, monkeypatch: pytest
     assert runtime.ui_settings.default_manufacturer == "Fanuc"
     assert runtime.ui_settings.default_intent_mode == "Auto"
     assert runtime.ui_settings.server_port == 8899
+    assert callable(runtime.rag_service_factory)
     assert runtime.manufacturers == ["All", "Bosch", "Fanuc"]
     assert runtime.equipment == ["All", "A06B", "CC220"]
 

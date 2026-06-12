@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 import importlib
+from pathlib import Path
 import sys
 from types import SimpleNamespace
 
@@ -14,11 +15,13 @@ from faultpilot.ui.settings import UiSettings
 
 def test_create_app_returns_blocks(monkeypatch) -> None:
     captured: dict[str, object] = {}
+    rag_service_factory = lambda _api_key: object()
 
     def fake_build_ui_runtime(_settings_path):
         captured["settings_path"] = _settings_path
         return SimpleNamespace(
             rag_service=object(),
+            rag_service_factory=rag_service_factory,
             manufacturers=["All", "Fanuc"],
             equipment=["All", "A06B"],
             ui_settings=UiSettings(
@@ -71,8 +74,10 @@ class _FakeDemo:
 
 
 def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
+    rag_service_factory = lambda _api_key: object()
     fake_runtime = SimpleNamespace(
         rag_service=object(),
+        rag_service_factory=rag_service_factory,
         manufacturers=["All", "Fanuc"],
         equipment=["All", "A06B"],
         ui_settings=UiSettings(
@@ -95,6 +100,7 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
     manufacturer = object()
     equipment = object()
     intent_mode = object()
+    api_key_box = object()
     send_button = _FakeButton()
     clear_button = _FakeButton()
     traceability_md = object()
@@ -105,6 +111,7 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         manufacturer=manufacturer,
         equipment=equipment,
         intent_mode=intent_mode,
+        api_key_box=api_key_box,
         send_button=send_button,
         clear_button=clear_button,
         traceability_md=traceability_md,
@@ -168,11 +175,25 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
     submit_call = query_box.calls[0]
     clear_call = clear_button.calls[0]
 
-    assert send_call.inputs == [query_box, chatbot, manufacturer, equipment, intent_mode]
+    assert send_call.inputs == [
+        query_box,
+        chatbot,
+        manufacturer,
+        equipment,
+        intent_mode,
+        api_key_box,
+    ]
     assert send_call.outputs == [chatbot, traceability_md, sources_md, query_box]
-    assert submit_call.inputs == [query_box, chatbot, manufacturer, equipment, intent_mode]
+    assert submit_call.inputs == [
+        query_box,
+        chatbot,
+        manufacturer,
+        equipment,
+        intent_mode,
+        api_key_box,
+    ]
     assert submit_call.outputs == [chatbot, traceability_md, sources_md, query_box]
-    assert clear_call.outputs == [chatbot, traceability_md, sources_md, query_box]
+    assert clear_call.outputs == [chatbot, traceability_md, sources_md, query_box, api_key_box]
     assert inspect.isgeneratorfunction(send_call.fn)
     assert inspect.isgeneratorfunction(submit_call.fn)
 
@@ -186,11 +207,13 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         "Fanuc",
         "A06B",
         "Auto",
+        "sk-test",
         )
     )
     assert stream_states == expected_stream_states
     assert captured_stream_call == {
         "rag_service": fake_runtime.rag_service,
+        "rag_service_factory": rag_service_factory,
         "query": "AL-09",
         "history": [
             {"role": "user", "content": "old"},
@@ -199,15 +222,64 @@ def test_create_app_wires_submit_send_and_clear(monkeypatch) -> None:
         "manufacturer": "Fanuc",
         "equipment": "A06B",
         "intent_mode": "Auto",
+        "api_key": "sk-test",
     }
     assert captured_settings_path["path"].name == "settings.yaml"
 
-    assert clear_call.fn() == ([], "", "", "")
+    assert clear_call.fn() == ([], "", "", "", "")
+
+
+def test_create_app_submit_kwargs_match_real_stream_signature(monkeypatch) -> None:
+    rag_service_factory = lambda _api_key: object()
+    fake_runtime = SimpleNamespace(
+        rag_service=object(),
+        rag_service_factory=rag_service_factory,
+        manufacturers=["All", "Fanuc"],
+        equipment=["All", "A06B"],
+        ui_settings=UiSettings(
+            title="Configured title",
+            server_port=7860,
+            theme="soft",
+            default_manufacturer="All",
+            default_intent_mode="Auto",
+            traceability_open_default=False,
+        ),
+    )
+
+    query_box = _FakeTextbox()
+    send_button = _FakeButton()
+    fake_handles = SimpleNamespace(
+        chatbot=object(),
+        query_box=query_box,
+        manufacturer=object(),
+        equipment=object(),
+        intent_mode=object(),
+        api_key_box=object(),
+        send_button=send_button,
+        clear_button=_FakeButton(),
+        traceability_md=object(),
+        sources_md=object(),
+        traceability_open_default=False,
+    )
+
+    monkeypatch.setattr("faultpilot.ui.app.build_ui_runtime", lambda _settings_path: fake_runtime)
+    monkeypatch.setattr(
+        "faultpilot.ui.app.build_layout",
+        lambda **kwargs: (_FakeDemo(), fake_handles),
+    )
+
+    create_app()
+
+    send_call = send_button.calls[0]
+    stream_states = list(send_call.fn("   ", [], "Fanuc", "A06B", "Auto", "sk-test"))
+
+    assert stream_states == [([], "### Traceability\n- Empty query", "### Sources\n- N/A", "")]
 
 
 def test_root_app_module_exports_demo(monkeypatch) -> None:
     sentinel = object()
     sys.modules.pop("app", None)
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2]))
     monkeypatch.setattr("faultpilot.ui.app.create_app", lambda: sentinel)
 
     module = importlib.import_module("app")
@@ -219,11 +291,13 @@ def test_create_app_uses_explicit_settings_path_from_non_repo_cwd(
     monkeypatch,
     tmp_path,
 ) -> None:
+    rag_service_factory = lambda _api_key: object()
     explicit_settings = (tmp_path / "custom-settings.yaml").resolve()
     explicit_settings.write_text("ui:\n  title: FaultPilot\n", encoding="utf-8")
 
     fake_runtime = SimpleNamespace(
         rag_service=object(),
+        rag_service_factory=rag_service_factory,
         manufacturers=["All", "Fanuc"],
         equipment=["All", "A06B"],
         ui_settings=UiSettings(
@@ -249,6 +323,7 @@ def test_create_app_uses_explicit_settings_path_from_non_repo_cwd(
         manufacturer=object(),
         equipment=object(),
         intent_mode=object(),
+        api_key_box=object(),
         send_button=_FakeButton(),
         clear_button=_FakeButton(),
         traceability_md=object(),
@@ -266,11 +341,13 @@ def test_create_app_uses_explicit_settings_path_from_non_repo_cwd(
 
 
 def test_create_app_uses_env_settings_path_when_not_explicit(monkeypatch, tmp_path) -> None:
+    rag_service_factory = lambda _api_key: object()
     env_settings = (tmp_path / "env-settings.yaml").resolve()
     env_settings.write_text("ui:\n  title: FaultPilot\n", encoding="utf-8")
 
     fake_runtime = SimpleNamespace(
         rag_service=object(),
+        rag_service_factory=rag_service_factory,
         manufacturers=["All", "Fanuc"],
         equipment=["All", "A06B"],
         ui_settings=UiSettings(
@@ -297,6 +374,7 @@ def test_create_app_uses_env_settings_path_when_not_explicit(monkeypatch, tmp_pa
         manufacturer=object(),
         equipment=object(),
         intent_mode=object(),
+        api_key_box=object(),
         send_button=_FakeButton(),
         clear_button=_FakeButton(),
         traceability_md=object(),

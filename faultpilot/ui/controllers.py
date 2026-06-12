@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Iterator, Literal, Protocol, TypedDict
+from typing import Callable, Iterator, Literal, Protocol, TypedDict
 
+from faultpilot.rag.openai_client import OpenAiTextGenerationError
 from faultpilot.rag.schemas import RagAnswer, TraceabilitySnapshot
 from faultpilot.retrieval.schemas import RetrievalFilters
 from faultpilot.routing.schemas import IntentType
@@ -50,6 +51,35 @@ def _normalize_intent_override(value: str | None) -> IntentType | None:
     return None
 
 
+def _degraded_payload(
+    conversation_prefix: list[ChatMessage],
+    assistant_message: str,
+    warning: str,
+) -> tuple[list[ChatMessage], str, str, str]:
+    fallback_snapshot = TraceabilitySnapshot(
+        routing_source="fallback",
+        intent_confidence=0.0,
+        degraded_mode=True,
+        warning=warning,
+        timing_ms={"routing": 0.0, "retrieval": 0.0, "generation": 0.0},
+    )
+    traceability_md = format_traceability_markdown(
+        intent="troubleshooting",
+        snapshot=fallback_snapshot,
+        citations=(),
+    )
+    sources_md = format_sources_markdown(())
+    return (
+        [
+            *conversation_prefix,
+            {"role": "assistant", "content": assistant_message},
+        ],
+        traceability_md,
+        sources_md,
+        "",
+    )
+
+
 def stream_chat_response(
     rag_service: RagServiceProtocol,
     query: str,
@@ -57,11 +87,15 @@ def stream_chat_response(
     manufacturer: str | None,
     equipment: str | None,
     intent_mode: str | None,
+    rag_service_factory: Callable[[str], RagServiceProtocol] | None = None,
+    api_key: str | None = None,
 ) -> Iterator[tuple[list[ChatMessage], str, str, str]]:
     clean_query = query.strip()
     if not clean_query:
         yield [*history], "### Traceability\n- Empty query", "### Sources\n- N/A", ""
         return
+
+    clean_api_key = (api_key or "").strip()
 
     filters = RetrievalFilters(
         manufacturer=_normalize_filter(manufacturer),
@@ -76,39 +110,53 @@ def stream_chat_response(
         {"role": "user", "content": clean_query},
     ]
 
+    if not clean_api_key:
+        yield _degraded_payload(
+            conversation_prefix=conversation_prefix,
+            assistant_message=(
+                "Please provide an OpenAI API key to run grounded answer generation."
+            ),
+            warning="missing_api_key",
+        )
+        return
+
+    active_service = rag_service
+    if rag_service_factory is not None:
+        try:
+            active_service = rag_service_factory(clean_api_key)
+        except Exception:
+            yield _degraded_payload(
+                conversation_prefix=conversation_prefix,
+                assistant_message=(
+                    "Backend unavailable. Returning degraded response with no grounded context."
+                ),
+                warning="backend_error",
+            )
+            return
+
     try:
-        answer = rag_service.answer(
+        answer = active_service.answer(
             clean_query,
             filters=filters,
             intent_override=intent_override,
         )
+    except OpenAiTextGenerationError:
+        yield _degraded_payload(
+            conversation_prefix=conversation_prefix,
+            assistant_message=(
+                "OpenAI provider error. Check your API key, quota, and connectivity, "
+                "then retry."
+            ),
+            warning="provider_error",
+        )
+        return
     except Exception:
-        fallback_snapshot = TraceabilitySnapshot(
-            routing_source="fallback",
-            intent_confidence=0.0,
-            degraded_mode=True,
+        yield _degraded_payload(
+            conversation_prefix=conversation_prefix,
+            assistant_message=(
+                "Backend unavailable. Returning degraded response with no grounded context."
+            ),
             warning="backend_error",
-            timing_ms={"routing": 0.0, "retrieval": 0.0, "generation": 0.0},
-        )
-        traceability_md = format_traceability_markdown(
-            intent="troubleshooting",
-            snapshot=fallback_snapshot,
-            citations=(),
-        )
-        sources_md = format_sources_markdown(())
-        yield (
-            [
-                *conversation_prefix,
-                {
-                    "role": "assistant",
-                    "content": (
-                        "Backend unavailable. Returning degraded response with no grounded context."
-                    ),
-                },
-            ],
-            traceability_md,
-            sources_md,
-            "",
         )
         return
 

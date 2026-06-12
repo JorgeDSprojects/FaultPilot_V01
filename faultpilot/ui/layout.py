@@ -21,6 +21,7 @@ class LayoutHandles:
     send_button: gr.Button
     clear_button: gr.Button
     intent_mode: gr.Dropdown
+    api_key_box: gr.Textbox
     traceability_md: gr.Markdown
     sources_md: gr.Markdown
     traceability_open_default: bool
@@ -58,6 +59,12 @@ def build_layout(
                     placeholder="Type your OT question...",
                     lines=2,
                 )
+                api_key_box = gr.Textbox(
+                    label="OpenAI API Key",
+                    placeholder="sk-your-key-here",
+                    type="password",
+                    lines=1,
+                )
                 with gr.Row():
                     send_button = gr.Button("Send", variant="primary")
                     clear_button = gr.Button("Clear")
@@ -91,6 +98,7 @@ def build_layout(
         send_button=send_button,
         clear_button=clear_button,
         intent_mode=intent_mode_dd,
+        api_key_box=api_key_box,
         traceability_md=traceability_md,
         sources_md=sources_md,
         traceability_open_default=traceability_open,

@@ -109,3 +109,26 @@
 ### Verification
 - `uv run python -m pytest tests/ui/test_settings.py -v`
 - `uv run python -m pytest tests -v`
+
+## 2026-06-12 - Compliance update: API key handling and deployment guidance
+
+### Changed
+- `README.md` now includes certification-focused sections:
+  - Clear project description.
+  - OpenAI API key guidance clarifying users paste the key in the UI each session (no required `OPENAI_API_KEY` env var/secret).
+  - Explicit statement that the API key is user-supplied in the UI and not persistently stored by FaultPilot.
+  - Quick cost estimate showing a `gpt-4o-mini` smoke run under $0.50.
+  - Explicit optional functionalities list for non-blocking capabilities.
+  - Hugging Face Spaces deployment guidance with a placeholder for the public Space URL.
+- `faultpilot/ui/controllers.py` runtime behavior now enforces per-session UI API keys:
+  - Empty keys return a stable degraded response with `missing_api_key` guidance.
+  - Provider/backend exceptions return stable degraded payloads instead of bubbling errors to the UI stream.
+- `faultpilot/ui/app.py` clear flow now resets conversation outputs and clears the API key textbox to reduce secret lifetime in-memory/UI state.
+- Dependency policy documented and verified for deployment runtime:
+  - `requirements.txt` is kept synchronized with `[project.dependencies]` in `pyproject.toml` for Spaces parity.
+
+### Verification
+- Executed `uv run pytest` -> 77 passed.
+- Executed `uv run python scripts/test_stream.py` -> stream smoke output returned `chunk=1` with degraded fallback `missing_api_key`.
+- Executed `uv run faultpilot-retrieval --settings config/settings.yaml search --query "AL-09" --route alarm_lookup --manufacturer Fanuc` -> returned `AL-09` matches from `ac_spindle_alarm_list.pdf`.
+- Executed dependency-sync verification command `uv run python -c "import pathlib,re,sys,tomllib; py=tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8')); deps={re.split(r'[<>=!~ ]', d.strip(), 1)[0] for d in py['project']['dependencies']}; req={re.split(r'[<>=!~ ]', l.strip(), 1)[0] for l in pathlib.Path('requirements.txt').read_text(encoding='utf-8').splitlines() if l.strip() and not l.lstrip().startswith('#')}; missing=sorted(deps-req); extra=sorted(req-deps); print('missing_in_requirements=', missing); print('extra_in_requirements=', extra); sys.exit(1 if missing or extra else 0)"` -> `missing_in_requirements=[]`, `extra_in_requirements=[]` (exit 0).
