@@ -10,3 +10,6 @@ data/processed/chroma_db/
 # Local isolated workspaces
 .worktrees/
 worktrees/
+
+# Local environment secrets
+.env
