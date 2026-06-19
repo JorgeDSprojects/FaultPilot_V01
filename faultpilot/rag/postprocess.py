@@ -44,7 +44,12 @@ def _has_citation(answer: str, citations: list[Citation]) -> bool:
     lowered = answer.lower()
     for citation in citations:
         source_ok = citation.source_doc.lower() in lowered
-        page_ok = f"p.{citation.page}" in lowered or f"page {citation.page}" in lowered
+        compact_doc_page_ok = f"{citation.source_doc.lower()}:{citation.page}" in lowered
+        page_ok = (
+            f"p.{citation.page}" in lowered
+            or f"page {citation.page}" in lowered
+            or compact_doc_page_ok
+        )
         if source_ok and page_ok:
             return True
     return False

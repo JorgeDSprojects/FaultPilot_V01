@@ -26,6 +26,13 @@ uv sync
 uv run pytest
 uv run python app.py
 ```
+Perfecto. Para ejecutarlo en local ahora mismo:
+- Instala dependencias (una sola vez): uv sync
+- Levanta la app: uv run python app.py
+- Abre en navegador: http://127.0.0.1:7860 (o el puerto que muestre consola)
+- En la UI, pega tu key en OpenAI API Key y luego pregunta en el chat
+
+
 
 Expected:
 - tests pass,

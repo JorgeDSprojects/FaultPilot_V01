@@ -32,7 +32,7 @@ class RagAnswerGenerator:
         if self._client is None:
             return _fallback_answer(query, intent, context, citations)
 
-        directive = "Always include source and page citations." if strict else ""
+        directive = _strict_citation_directive(citations) if strict else ""
         prompt = (
             f"Intent: {intent}\n"
             f"Question: {query}\n"
@@ -57,3 +57,28 @@ def _fallback_answer(
         f"Based on retrieved context: {context[:220]}\n"
         f"Source [{primary.source_doc}:p.{primary.page}]"
     )
+
+
+def _strict_citation_directive(citations: list[Citation]) -> str:
+    if not citations:
+        return "Always include source and page citations."
+
+    tokens: list[str] = []
+    seen: set[str] = set()
+    for citation in citations:
+        candidates = [
+            f"[{citation.source_doc}:p.{citation.page}]",
+            f"[{citation.source_doc}:{citation.page}]",
+        ]
+        for token in candidates:
+            if token in seen:
+                continue
+            seen.add(token)
+            tokens.append(token)
+
+    lines = [
+        "Use one of these exact citation tokens in the final answer:",
+        *(f"- {token}" for token in tokens),
+        "Do not invent citations.",
+    ]
+    return "\n".join(lines)
