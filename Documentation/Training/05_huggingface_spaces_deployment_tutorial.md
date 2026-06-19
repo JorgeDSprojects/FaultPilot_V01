@@ -72,12 +72,33 @@ Use GitHub sync (recommended), keep manual upload only as fallback.
 **Implementacion:**
 1. In the Space page, open **Settings -> Repository secrets and variables** (optional here).
 2. In **Settings -> Linked repositories**, connect your GitHub repo.
-3. Confirm these files exist at repo root:
+Sí, correcto: en muchas cuentas ese menú de Linked repositories ya no aparece (o cambió de sitio).  
+No te preocupes: hay una forma 100% fiable de desplegar igual.
+Hazlo por git push al repo del Space:
+# En tu repo local
+git remote add hf-space https://huggingface.co/spaces/jmartinezsegulagrp/faultpilot-v01
+
+https://huggingface.co/spaces/<TU_USUARIO_HF>/<NOMBRE_DEL_SPACE>
+https://huggingface.co/spaces/jmartinezsegulagrp/faultpilot-v01
+# Empuja tu rama main al Space
+git push hf-space main
+Cuando pida credenciales:
+- Username: tu usuario de Hugging Face
+- Password: tu HF Token (no tu password normal)
+Luego:
+1. Abre tu Space en HF.
+2. Ve a Build logs.
+3. Espera a Running.
+4. Prueba la app (sin key debe pedir key; con key debe responder).
+Si te da error por tamaño de archivos al hacer push, te paso el flujo con Git LFS en 2 comandos extra.
+
+
+4. Confirm these files exist at repo root:
    - `app.py`
    - `requirements.txt`
    - `config/settings.yaml`
-4. Push latest `main` branch to GitHub.
-5. Wait for Space auto-build.
+5. Push latest `main` branch to GitHub.
+6. Wait for Space auto-build.
 
 Fallback (manual):
 - Use `git` with the Space URL and push current repo contents.
